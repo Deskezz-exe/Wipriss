@@ -6,6 +6,8 @@
   -->
   <PropertyGroup>
     <RootNamespace>Wipriss.ProcessTools</RootNamespace>
+    <!-- Function pointers for calling the Windows network usage API without the 20 MB projection -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
 </Project>

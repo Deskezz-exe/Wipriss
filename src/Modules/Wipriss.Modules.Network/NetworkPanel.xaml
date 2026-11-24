@@ -1,0 +1,142 @@
+<UserControl x:Class="Wipriss.Modules.Network.NetworkPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <!-- A suspicious program: who, why, what it did, what you can do -->
+        <DataTemplate x:Key="SuspectCard">
+            <Border x:Name="Card" Style="{StaticResource ListCard}" Padding="12,10,8,10">
+                <StackPanel>
+                    <DockPanel>
+                        <Border DockPanel.Dock="Right" VerticalAlignment="Top" CornerRadius="6" Padding="7,2" BorderThickness="1"
+                                BorderBrush="{Binding LevelBrush}">
+                            <TextBlock Text="{Binding LevelText}" FontFamily="{StaticResource SmallFont}" FontSize="11"
+                                       Foreground="{Binding LevelBrush}" />
+                        </Border>
+                        <Image Source="{Binding Icon}" Width="20" Height="20" VerticalAlignment="Top" Margin="0,1,10,0"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
+                        <StackPanel Margin="0,0,8,0">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding PathText}" FontFamily="{StaticResource SmallFont}" FontSize="11"
+                                       Foreground="{StaticResource FaintTextBrush}" TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding PathText}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <ItemsControl ItemsSource="{Binding Reasons}" Margin="30,8,0,0" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,4">
+                                    <Ellipse Width="5" Height="5" Margin="0,7,9,0" VerticalAlignment="Top"
+                                             Fill="{Binding DataContext.LevelBrush, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12.5" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="{Binding Facts}" Margin="30,4,0,0" FontFamily="{StaticResource SmallFont}" FontSize="11.5"
+                               Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap" />
+
+                    <WrapPanel x:Name="Actions" Margin="30,10,0,0">
+                        <Button Style="{StaticResource PlainButton}" FontSize="12" Content="Это моё, доверяю" Click="Trust_Click"
+                                Margin="0,0,6,6" ToolTip="Больше не показывать эту программу среди подозрительных" />
+                        <Button Style="{StaticResource PlainButton}" FontSize="12" Content="Показать в папке" Click="Folder_Click"
+                                Margin="0,0,6,6" Visibility="{Binding FolderVisibility}" />
+                        <Button Style="{StaticResource PlainButton}" FontSize="12" Content="Проверить на VirusTotal" Click="VirusTotal_Click"
+                                Margin="0,0,6,6" Visibility="{Binding FolderVisibility}"
+                                ToolTip="Откроет сайт VirusTotal в браузере. Туда уйдёт только отпечаток файла (SHA-256), сам файл остаётся у вас" />
+                        <Button Style="{StaticResource DangerButton}" FontSize="12" Content="Завершить" Click="Stop_Click"
+                                Margin="0,0,6,6" Visibility="{Binding StopVisibility}" />
+                    </WrapPanel>
+
+                    <StackPanel x:Name="Confirm" Margin="30,4,0,2" Visibility="Collapsed">
+                        <TextBlock Text="{Binding ConfirmText}" TextWrapping="Wrap" FontSize="12.5" />
+                        <WrapPanel Margin="0,8,0,0">
+                            <Button Style="{StaticResource DangerButton}" Content="{Binding PrimaryText}" FontSize="12"
+                                    Click="Primary_Click" Margin="0,0,6,0" />
+                            <Button Style="{StaticResource PlainButton}" Content="Отмена" FontSize="12" Click="Cancel_Click" />
+                        </WrapPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsAsking}" Value="True">
+                    <Setter TargetName="Confirm" Property="Visibility" Value="Visible" />
+                    <Setter TargetName="Actions" Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- Everyone who used the network today -->
+        <DataTemplate x:Key="AppRow">
+            <Border Style="{StaticResource ListCard}" Padding="11,7,10,7" Margin="0,0,0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid Width="20" Height="20" VerticalAlignment="Center">
+                        <TextBlock x:Name="NoIcon" Text="&#xE770;" FontFamily="{StaticResource IconFont}" FontSize="14"
+                                   Foreground="{StaticResource FaintTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Visibility="Collapsed" />
+                        <Image Source="{Binding Icon}" RenderOptions.BitmapScalingMode="HighQuality" />
+                    </Grid>
+                    <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center" ToolTip="{Binding PathText}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="250" />
+                            <Ellipse Width="6" Height="6" Margin="7,1,0,0" VerticalAlignment="Center" Fill="{Binding LevelBrush}"
+                                     Visibility="{Binding FlagVisibility}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding Details}" Margin="0,1,0,0" FontFamily="{StaticResource SmallFont}" FontSize="11"
+                                   Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="2" Text="{Binding TrafficText}" VerticalAlignment="Center" FontSize="12"
+                               Typography.NumeralAlignment="Tabular" Foreground="{StaticResource SubtleTextBrush}" />
+                </Grid>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Icon}" Value="{x:Null}">
+                    <Setter TargetName="NoIcon" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Style="{StaticResource SegmentTrack}" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal">
+                <RadioButton x:Name="SuspectsTab" Style="{StaticResource Segment}" GroupName="NetView" Content="Подозрительные"
+                             IsChecked="True" Checked="View_Checked" />
+                <RadioButton x:Name="AllTab" Style="{StaticResource Segment}" GroupName="NetView" Content="Все в сети" Checked="View_Checked" />
+            </StackPanel>
+        </Border>
+
+        <StackPanel DockPanel.Dock="Bottom" Margin="2,10,0,0">
+            <TextBlock x:Name="StatusText" Style="{StaticResource Caption}" Margin="0,0,0,6" Visibility="Collapsed" />
+            <DockPanel>
+                <Button x:Name="ResetTrustButton" DockPanel.Dock="Right" Style="{StaticResource PlainButton}" FontSize="11.5"
+                        Click="ResetTrust_Click" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="8,0,0,0" />
+                <TextBlock Style="{StaticResource Caption}" Foreground="{StaticResource FaintTextBrush}"
+                           Text="Объём за сегодня Windows досчитывает примерно раз в час. Соединения и нагрузка на процессор видны сразу." />
+            </DockPanel>
+        </StackPanel>
+
+        <Grid>
+            <!-- Calm state: nothing to worry about -->
+            <StackPanel x:Name="CalmPanel" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed" Margin="24,0">
+                <ContentControl Style="{StaticResource Socket}" Content="&#xE73E;" Width="44" Height="44" FontSize="20"
+                                Foreground="{StaticResource OkBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="Ничего подозрительного" Style="{StaticResource PanelTitle}" HorizontalAlignment="Center" Margin="0,14,0,0" />
+                <TextBlock x:Name="CalmText" Style="{StaticResource Caption}" TextAlignment="Center" Margin="0,6,0,0" MaxWidth="360" />
+            </StackPanel>
+
+            <TextBlock x:Name="LoadingText" Text="Смотрю, кто пользуется сетью…" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{StaticResource SubtleTextBrush}" />
+
+            <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="List" Focusable="False" ItemTemplate="{StaticResource SuspectCard}" />
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</UserControl>

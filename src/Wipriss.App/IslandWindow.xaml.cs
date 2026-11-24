@@ -130,15 +130,18 @@ public partial class IslandWindow : Window
         UpdateVisibility();
     }
 
-    /// <summary>Creates the tiles. Only when the set of enabled modules changes.</summary>
+    /// <summary>
+    /// Creates the tiles. Only when the set of enabled modules changes. Their captions are filled when the
+    /// island opens, so nothing asks modules for work at startup (some summaries start a background check).
+    /// </summary>
     private void RebuildTiles()
     {
         _tiles = ModuleCatalog.All
             .Where(m => _store.Current.IsModuleEnabled(m.Id))
             .Select(m => new TileItem(m))
             .ToList();
-        UpdateTiles();
         Tiles.ItemsSource = _tiles;
+        if (_expanded) UpdateTiles();
     }
 
     /// <summary>Refreshes what each tile says. Runs when the island opens, so the summaries are fresh.</summary>

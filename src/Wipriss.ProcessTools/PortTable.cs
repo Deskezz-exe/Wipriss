@@ -13,6 +13,9 @@ public sealed record PortEntry(PortProtocol Protocol, int Port, IPAddress Addres
     public bool IsAnyAddress => Address.Equals(IPAddress.Any) || Address.Equals(IPAddress.IPv6Any);
 }
 
+/// <summary>An open connection from a process on this PC to another computer.</summary>
+public sealed record ConnectionEntry(IPAddress RemoteAddress, int RemotePort, int Pid);
+
 /// <summary>Who holds which port, straight from the Windows IP helper. Read-only, takes about a millisecond.</summary>
 public static class PortTable
 {
@@ -46,6 +49,35 @@ public static class PortTable
             list.Add(new PortEntry(PortProtocol.Udp, PortAt(row, 20), Ipv6At(row, 0), Marshal.ReadInt32(row, 24))));
         return list;
     }
+
+    /// <summary>
+    /// Open TCP connections to other computers (connected or connecting), IPv4 and IPv6.
+    /// Connections inside this PC (to 127.0.0.1 and ::1) are left out: they are not network traffic.
+    /// </summary>
+    public static List<ConnectionEntry> InternetConnections()
+    {
+        const int TCP_TABLE_OWNER_PID_CONNECTIONS = 4;
+        const int SynSent = 3, Established = 5;
+        var list = new List<ConnectionEntry>();
+        Read(AF_INET, tcp: true, TCP_TABLE_OWNER_PID_CONNECTIONS, rowSize: 24, (row) =>
+        {
+            int state = Marshal.ReadInt32(row, 0);
+            var remote = Ipv4At(row, 12);
+            if (state is SynSent or Established && !IPAddress.IsLoopback(remote))
+                list.Add(new ConnectionEntry(remote, PortAt(row, 16), Marshal.ReadInt32(row, 20)));
+        });
+        Read(AF_INET6, tcp: true, TCP_TABLE_OWNER_PID_CONNECTIONS, rowSize: 56, (row) =>
+        {
+            int state = Marshal.ReadInt32(row, 48);
+            var remote = Ipv6At(row, 24);
+            if (state is SynSent or Established && !IPAddress.IsLoopback(remote) && !IsMappedLoopback(remote))
+                list.Add(new ConnectionEntry(remote, PortAt(row, 44), Marshal.ReadInt32(row, 52)));
+        });
+        return list;
+    }
+
+    private static bool IsMappedLoopback(IPAddress address) =>
+        address.IsIPv4MappedToIPv6 && IPAddress.IsLoopback(address.MapToIPv4());
 
     private static void Read(int family, bool tcp, int tableClass, int rowSize, Action<IntPtr> onRow)
     {

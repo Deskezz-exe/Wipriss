@@ -9,7 +9,7 @@
     <Project Path="src/Modules/Wipriss.Modules.ClipboardHistory/Wipriss.Modules.ClipboardHistory.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Notes/Wipriss.Modules.Notes.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Ports/Wipriss.Modules.Ports.csproj" />
-    <Project Path="src/Modules/Wipriss.Modules.Processes/Wipriss.Modules.Processes.csproj" />
+    <Project Path="src/Modules/Wipriss.Modules.Network/Wipriss.Modules.Network.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Reminders/Wipriss.Modules.Reminders.csproj" />
   </Folder>
   <Folder Name="/tests/">
