@@ -56,7 +56,7 @@ public sealed class RemindersModule : IModule
         get
         {
             var next = Upcoming.FirstOrDefault();
-            return next is null ? "нет напоминаний" : ReminderInput.Short(next.At, DateTime.Now);
+            return next is null ? "пусто" : ReminderInput.Short(next.At, DateTime.Now);
         }
     }
 

@@ -13,7 +13,6 @@ public partial class ClipboardPanel : UserControl
 {
     private const string TrashGlyph = "";
     private const string ConfirmGlyph = "";
-    private static readonly Brush DangerBrush = new SolidColorBrush(Color.FromRgb(0xF0, 0x5A, 0x5A));
 
     private readonly ClipboardModule _module;
     private readonly IPanelContext _panel;
@@ -107,7 +106,7 @@ public partial class ClipboardPanel : UserControl
         if ((string)ClearButton.Content == TrashGlyph)
         {
             ClearButton.Content = ConfirmGlyph;
-            ClearButton.Foreground = DangerBrush;
+            ClearButton.Foreground = (Brush)FindResource("DangerBrush");
             ClearButton.ToolTip = "Нажмите ещё раз, чтобы очистить всю историю";
             return;
         }

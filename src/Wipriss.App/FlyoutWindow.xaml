@@ -6,12 +6,12 @@
         Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}"
         FontFamily="{StaticResource UiFont}" FontSize="13">
     <DockPanel>
-        <DockPanel DockPanel.Dock="Top" Margin="18,12,10,8">
-            <TextBlock x:Name="GlyphText" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
+        <DockPanel DockPanel.Dock="Top" Margin="16,14,12,12">
+            <ContentControl x:Name="GlyphSocket" Style="{StaticResource Socket}" VerticalAlignment="Center" />
             <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE711;" ToolTip="Закрыть (Esc)"
                     Click="Close_Click" />
-            <TextBlock x:Name="TitleText" Margin="10,0,0,0" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock x:Name="TitleText" Margin="11,0,0,1" Style="{StaticResource PanelTitle}" VerticalAlignment="Center" />
         </DockPanel>
-        <ContentControl x:Name="Host" Margin="18,4,18,16" Focusable="False" />
+        <ContentControl x:Name="Host" Margin="16,2,16,16" Focusable="False" />
     </DockPanel>
 </Window>

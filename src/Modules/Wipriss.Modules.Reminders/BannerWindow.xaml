@@ -6,20 +6,18 @@
         Width="380" SizeToContent="Height" UseLayoutRounding="True"
         Background="{StaticResource IslandBrush}" Foreground="{StaticResource TextBrush}"
         FontFamily="{StaticResource UiFont}" FontSize="13">
-    <Border Padding="18,14,18,16" BorderBrush="{StaticResource IslandBorderBrush}" BorderThickness="1">
-        <DockPanel>
-            <TextBlock DockPanel.Dock="Left" Text="&#xEA8F;" FontFamily="{StaticResource IconFont}" FontSize="20"
-                       Margin="0,2,14,0" VerticalAlignment="Top" />
-            <StackPanel>
-                <TextBlock x:Name="Caption" FontSize="11.5" Foreground="{StaticResource SubtleTextBrush}" />
-                <TextBlock x:Name="TitleText" Margin="0,2,0,0" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                <TextBlock x:Name="WhenText" Margin="0,2,0,0" Foreground="{StaticResource SubtleTextBrush}" />
-                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                    <Button Style="{StaticResource PlainButton}" Content="Готово" Click="Done_Click" />
-                    <Button x:Name="SnoozeButton" Style="{StaticResource PlainButton}" Content="Через 10 мин" Margin="8,0,0,0"
-                            Click="Snooze_Click" />
-                </StackPanel>
+    <DockPanel Margin="16,15,18,16">
+        <ContentControl DockPanel.Dock="Left" Style="{StaticResource Socket}" Content="&#xEA8F;"
+                        Margin="0,1,13,0" VerticalAlignment="Top" />
+        <StackPanel>
+            <TextBlock x:Name="Caption" Style="{StaticResource Caption}" />
+            <TextBlock x:Name="TitleText" Margin="0,1,0,0" Style="{StaticResource PanelTitle}" FontSize="16" TextWrapping="Wrap" />
+            <TextBlock x:Name="WhenText" Margin="0,2,0,0" Foreground="{StaticResource SubtleTextBrush}" />
+            <StackPanel Orientation="Horizontal" Margin="0,13,0,0">
+                <Button Style="{StaticResource PrimaryButton}" Content="Готово" Click="Done_Click" />
+                <Button x:Name="SnoozeButton" Style="{StaticResource PlainButton}" Content="Через 10 мин" Margin="8,0,0,0"
+                        Click="Snooze_Click" />
             </StackPanel>
-        </DockPanel>
-    </Border>
+        </StackPanel>
+    </DockPanel>
 </Window>

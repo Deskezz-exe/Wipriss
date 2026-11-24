@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Media;
 using Wipriss.Core.Ui;
 
 namespace Wipriss.Modules.Reminders;
@@ -34,6 +35,7 @@ public partial class BannerWindow : Window
         base.OnSourceInitialized(e);
         NativeWindowStyle.NoActivateToolWindow(this);
         NativeWindowStyle.RoundCorners(this);
+        NativeWindowStyle.FrameColors(this, (Color)FindResource("HairlineColor"));
     }
 
     private void Place()

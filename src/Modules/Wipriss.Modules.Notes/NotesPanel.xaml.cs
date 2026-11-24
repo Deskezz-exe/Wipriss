@@ -15,7 +15,6 @@ public partial class NotesPanel : UserControl
 {
     private const string TrashGlyph = "";
     private const string ConfirmGlyph = "";
-    private static readonly Brush DangerBrush = new SolidColorBrush(Color.FromRgb(0xF0, 0x5A, 0x5A));
 
     private readonly NotesModule _module;
     private readonly IPanelContext _panel;
@@ -106,7 +105,7 @@ public partial class NotesPanel : UserControl
         if (!string.IsNullOrWhiteSpace(note.Text) && (string)button.Content == TrashGlyph)
         {
             button.Content = ConfirmGlyph;
-            button.Foreground = DangerBrush;
+            button.Foreground = (Brush)FindResource("DangerBrush");
             button.ToolTip = "Нажмите ещё раз, чтобы удалить";
             return;
         }

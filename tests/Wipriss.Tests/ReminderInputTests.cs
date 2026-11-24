@@ -61,4 +61,16 @@ public class ReminderInputTests
         Assert.Equal("завтра, 09:00", ReminderInput.Describe(Today.Date.AddDays(1).AddHours(9), Today));
         Assert.Equal("30 ноября, пн, 21:00", ReminderInput.Describe(new DateTime(2026, 11, 30, 21, 0, 0), Today));
     }
+
+    [Theory]
+    [InlineData(2026, 11, 24, "сегодня 21:00")]
+    [InlineData(2026, 11, 25, "завтра 21:00")]
+    [InlineData(2026, 11, 30, "30.11 21:00")]
+    [InlineData(2027, 1, 5, "05.01 21:00")]
+    public void Short_form_fits_a_tile(int year, int month, int day, string expected)
+    {
+        string text = ReminderInput.Short(new DateTime(year, month, day, 21, 0, 0), Today);
+        Assert.Equal(expected, text);
+        Assert.True(text.Length <= 13);
+    }
 }

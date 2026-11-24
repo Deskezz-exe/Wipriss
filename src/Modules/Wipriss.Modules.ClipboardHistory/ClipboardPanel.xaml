@@ -6,15 +6,16 @@
             <Button x:Name="ClearButton" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE74D;"
                     ToolTip="Очистить всё" Click="Clear_Click" MouseLeave="Clear_MouseLeave" />
             <Button x:Name="PauseButton" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Click="Pause_Click" />
-            <StackPanel Orientation="Horizontal">
-                <RadioButton Style="{StaticResource Segment}" GroupName="ClipFilter" Content="Все" Tag="all" IsChecked="True" Checked="Filter_Checked" />
-                <RadioButton Style="{StaticResource Segment}" GroupName="ClipFilter" Content="Текст" Tag="text" Checked="Filter_Checked" />
-                <RadioButton Style="{StaticResource Segment}" GroupName="ClipFilter" Content="Фото" Tag="image" Checked="Filter_Checked" />
-            </StackPanel>
+            <Border Style="{StaticResource SegmentTrack}" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Style="{StaticResource Segment}" GroupName="ClipFilter" Content="Все" Tag="all" IsChecked="True" Checked="Filter_Checked" />
+                    <RadioButton Style="{StaticResource Segment}" GroupName="ClipFilter" Content="Текст" Tag="text" Checked="Filter_Checked" />
+                    <RadioButton Style="{StaticResource Segment}" GroupName="ClipFilter" Content="Фото" Tag="image" Checked="Filter_Checked" />
+                </StackPanel>
+            </Border>
         </DockPanel>
 
-        <TextBlock x:Name="Hint" DockPanel.Dock="Bottom" Margin="2,10,0,0" FontSize="11.5" TextWrapping="Wrap"
-                   Foreground="{StaticResource SubtleTextBrush}"
+        <TextBlock x:Name="Hint" DockPanel.Dock="Bottom" Margin="2,10,0,0" Style="{StaticResource Caption}"
                    Text="Клик по записи копирует её снова. Хранятся 20 последних, зашифрованы, только на этом компьютере. Пароли из менеджеров паролей не сохраняются." />
 
         <Grid>

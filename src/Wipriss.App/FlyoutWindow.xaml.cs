@@ -20,7 +20,7 @@ public partial class FlyoutWindow : Window, IPanelContext
         InitializeComponent();
         ModuleId = module.Info.Id;
         Title = $"Wipriss · {module.Info.Title}";
-        GlyphText.Text = module.Info.Glyph;
+        GlyphSocket.Content = module.Info.Glyph;
         TitleText.Text = module.Info.Title;
         Width = module.PanelSize.Width;
         Height = module.PanelSize.Height;
@@ -41,6 +41,7 @@ public partial class FlyoutWindow : Window, IPanelContext
     {
         base.OnSourceInitialized(e);
         NativeWindowStyle.RoundCorners(this);
+        NativeWindowStyle.FrameColors(this, ThemeColors.Hairline);
     }
 
     protected override void OnDeactivated(EventArgs e)

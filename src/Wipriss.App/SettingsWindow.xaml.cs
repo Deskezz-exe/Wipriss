@@ -4,6 +4,7 @@ using Wipriss.App.Interop;
 using Wipriss.App.Shell;
 using Wipriss.Core.Modules;
 using Wipriss.Core.Settings;
+using Wipriss.Core.Ui;
 
 namespace Wipriss.App;
 
@@ -37,6 +38,7 @@ public partial class SettingsWindow : Window
     {
         base.OnSourceInitialized(e);
         Native.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
+        NativeWindowStyle.FrameColors(this, ThemeColors.Hairline, caption: ThemeColors.Window, captionText: ThemeColors.Text);
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e) => ExitRequested?.Invoke();
@@ -46,6 +48,8 @@ public partial class SettingsWindow : Window
 public sealed class ModuleToggle(ModuleInfo info, SettingsStore store, bool built)
 {
     public ModuleInfo Info { get; } = info;
+
+    public bool Built => built;
 
     public string Subtitle => built ? Info.Description : Info.StageText;
 

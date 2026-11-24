@@ -80,12 +80,12 @@ public static partial class ReminderInput
         return $"{day}, {at.ToString("HH:mm", Ru)}";
     }
 
-    /// <summary>Short form for the island tile: "сегодня 21:00", "30 ноября 21:00".</summary>
+    /// <summary>Short form for the island tile, which fits about 13 characters: "сегодня 21:00", "30.11 21:00".</summary>
     public static string Short(DateTime at, DateTime now)
     {
         string day = at.Date == now.Date ? "сегодня"
             : at.Date == now.Date.AddDays(1) ? "завтра"
-            : at.ToString("d MMMM", Ru);
+            : at.ToString("dd.MM", Ru);
         return $"{day} {at.ToString("HH:mm", Ru)}";
     }
 

@@ -7,9 +7,9 @@ namespace Wipriss.Modules.Reminders;
 
 public partial class RemindersPanel : UserControl
 {
-    private static readonly Brush ErrorBrush = new SolidColorBrush(Color.FromRgb(0xF0, 0x5A, 0x5A));
-    private static readonly Brush WarnBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xA6, 0x19));
-    private static readonly Brush OkBrush = new SolidColorBrush(Color.FromRgb(0x4E, 0xA1, 0x7B));
+    private Brush ErrorBrush => (Brush)FindResource("DangerBrush");
+    private Brush WarnBrush => (Brush)FindResource("WarnBrush");
+    private Brush OkBrush => (Brush)FindResource("OkBrush");
 
     private readonly RemindersModule _module;
 

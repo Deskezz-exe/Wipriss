@@ -3,13 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
-            <Button Style="{StaticResource PlainButton}" Content="+ Новая" Click="New_Click" />
+            <Button Style="{StaticResource PrimaryButton}" Content="+ Новая" Click="New_Click" />
             <Button Style="{StaticResource PlainButton}" Content="Скопировать всё" Margin="8,0,0,0" Click="CopyAll_Click" />
             <Button Style="{StaticResource PlainButton}" Content="Сохранить в файл" Margin="8,0,0,0" Click="Export_Click" />
         </StackPanel>
 
-        <TextBlock x:Name="Hint" DockPanel.Dock="Bottom" Margin="2,10,0,0" FontSize="11.5" TextWrapping="Wrap"
-                   Foreground="{StaticResource SubtleTextBrush}"
+        <TextBlock x:Name="Hint" DockPanel.Dock="Bottom" Margin="2,10,0,0" Style="{StaticResource Caption}"
                    Text="Сохраняется само. Зашифровано и хранится только на этом компьютере." />
 
         <Grid>
