@@ -32,13 +32,20 @@ Wipriss is built with the help of AI (Claude Code).
 | Reminders | Banner (center, corner or none) at the exact time, with or without sound. One system timer, no polling. | ✅ ready |
 | Network | Who used how much internet today, and who looks suspicious: a program that normally stays offline moving hundreds of MB, an unsigned file running from Temp, a fake `svchost.exe`, a connection to a crypto-mining port. Every flag comes with plain reasons. No admin rights, nothing sent anywhere. | ✅ ready |
 | Ports | Which program holds which port (for example `node vite`), and a stop button for the whole process tree, including the `npm` that would restart it. Windows, services, Docker and WSL are marked and never stopped. | ✅ ready |
-| Screenshot & mini recording | PrtScreen replacement: area, window, scrolling capture, copy to clipboard, short screen recordings. | planned |
+| Screenshots | PrtSc freezes the screen: drag an area or click a window, take the whole screen, or scroll: the page scrolls by itself and is glued into one tall picture. The shot goes straight to the clipboard and never into clipboard history; a small card offers an editor (pen, marker, arrow, frame, blur for private details, crop, size). Nothing is written to disk unless you press Save. | ✅ ready |
 | Image converter | Format, resolution, target file size, background removal. | planned |
 | PDF / XLSX / CSV reader | View and edit these files in a light window, optionally on double-click. | planned |
 | Voice typing | Press a key, speak, the text appears at the cursor. Runs fully offline. | planned |
 | Smart cleaner | Finds leftovers of uninstalled programs by checking what is actually installed, explains each item, deletes to a quarantine you can restore from. | planned |
 
-Tip: `Wipriss.exe --open notes` (or `clipboard`, `reminders`, `network`, `ports`) opens a module directly. Put it in a shortcut with a hotkey for one-key access.
+Tip: `Wipriss.exe --open notes` (or `clipboard`, `reminders`, `network`, `ports`, `capture`) opens a module directly. Put it in a shortcut with a hotkey for one-key access.
+
+## One folder
+
+Everything Wipriss keeps is in one place, `%USERPROFILE%\Wipriss` by default (you can move it in settings):
+
+- `Скриншоты` (screenshots): only the ones you saved;
+- `Служебное` (internal): notes, clipboard history, reminders and settings, encrypted with Windows DPAPI.
 
 ## Thanks
 

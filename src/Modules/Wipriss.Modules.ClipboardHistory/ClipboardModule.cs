@@ -48,7 +48,7 @@ public sealed class ClipboardModule : IModule
     private const int MaxImageBytes = 40 * 1024 * 1024;
     private const int WM_CLIPBOARDUPDATE = 0x031D;
 
-    private static readonly string Dir = Path.Combine(AppPaths.LocalDir, "clipboard");
+    private static readonly string Dir = Path.Combine(AppPaths.DataDir, "clipboard");
     private static readonly string IndexPath = Path.Combine(Dir, "index.dat");
     private static readonly string ItemsDir = Path.Combine(Dir, "items");
 

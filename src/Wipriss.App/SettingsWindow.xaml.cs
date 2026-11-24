@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Interop;
 using Wipriss.App.Interop;
 using Wipriss.App.Shell;
+using Wipriss.Core;
 using Wipriss.Core.Modules;
 using Wipriss.Core.Settings;
 using Wipriss.Core.Ui;
@@ -22,6 +23,9 @@ public partial class SettingsWindow : Window
         AutostartToggle.IsChecked = Autostart.IsEnabled;
         ModuleList.ItemsSource = ModuleCatalog.All.Select(m => new ModuleToggle(m, store, modules.IsBuilt(m.Id))).ToList();
 
+        FolderText.Text = AppPaths.Root;
+        FolderText.ToolTip = AppPaths.Root;
+
         var version = typeof(App).Assembly.GetName().Version;
         VersionText.Text = version is null ? "Wipriss" : $"Wipriss {version.Major}.{version.Minor}.{version.Build}";
 
@@ -33,6 +37,46 @@ public partial class SettingsWindow : Window
     }
 
     public event Action? ExitRequested;
+
+    /// <summary>The user picked a new place for the Wipriss folder (already checked).</summary>
+    public event Action<string>? MoveFolderRequested;
+
+    private void OpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(AppPaths.Root);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{AppPaths.Root}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex);
+        }
+    }
+
+    private void ChangeFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Новое место для папки Wipriss" };
+        if (dialog.ShowDialog(this) != true) return;
+
+        // A "Wipriss" folder inside the chosen one, unless the user picked an empty folder for it.
+        string chosen = dialog.FolderName;
+        string target = System.IO.Directory.Exists(chosen) && System.IO.Directory.EnumerateFileSystemEntries(chosen).Any()
+            ? System.IO.Path.Combine(chosen, "Wipriss")
+            : chosen;
+
+        if (DataFolder.Check(target) is { } problem)
+        {
+            FolderProblem.Text = problem;
+            FolderProblem.Visibility = Visibility.Visible;
+            return;
+        }
+
+        var answer = MessageBox.Show(this,
+            $"Перенести папку Wipriss сюда?\n\n{target}\n\nWipriss перезапустится.",
+            "Wipriss", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (answer == MessageBoxResult.OK) MoveFolderRequested?.Invoke(target);
+    }
 
     protected override void OnSourceInitialized(EventArgs e)
     {

@@ -80,6 +80,8 @@ public partial class IslandWindow : Window
         // Tool window: not in Alt+Tab. No-activate: clicking the island never steals focus from your app.
         nint style = Native.GetWindowLongPtr(hwnd, Native.GWL_EXSTYLE);
         Native.SetWindowLongPtr(hwnd, Native.GWL_EXSTYLE, style | Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE);
+        // The island never shows up in screenshots or screen recordings, like a hardware cut-out.
+        Native.SetWindowDisplayAffinity(hwnd, Native.WDA_EXCLUDEFROMCAPTURE);
 
         var source = HwndSource.FromHwnd(hwnd);
         source.AddHook(WndProc);

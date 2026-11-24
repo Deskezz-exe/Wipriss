@@ -19,6 +19,22 @@
             </StackPanel>
         </Border>
 
+        <TextBlock Text="Папка Wipriss" Style="{StaticResource SectionTitle}" Margin="2,22,0,2" />
+        <TextBlock Text="Всё в одном месте: сохранённые скриншоты и записи, а в «Служебное» зашифрованные заметки, буфер, напоминания и настройки."
+                   Style="{StaticResource Caption}" Margin="2,0,0,8" />
+        <Border Style="{StaticResource Card}" Padding="16,12">
+            <StackPanel>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource PlainButton}" Content="Сменить…" Margin="6,0,0,0"
+                            Click="ChangeFolder_Click" />
+                    <Button DockPanel.Dock="Right" Style="{StaticResource PlainButton}" Content="Открыть" Click="OpenFolder_Click" />
+                    <TextBlock x:Name="FolderText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,10,0" />
+                </DockPanel>
+                <TextBlock x:Name="FolderProblem" Style="{StaticResource Caption}" Foreground="{StaticResource WarnBrush}"
+                           Margin="0,8,0,0" Visibility="Collapsed" />
+            </StackPanel>
+        </Border>
+
         <TextBlock Text="Модули" Style="{StaticResource SectionTitle}" Margin="2,22,0,2" />
         <TextBlock Text="Выключенный модуль не загружается вообще и не тратит память."
                    Style="{StaticResource Caption}" Margin="2,0,0,8" />

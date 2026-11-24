@@ -26,7 +26,7 @@ internal sealed partial class NotesJson : JsonSerializerContext;
 /// <summary>Quick notes. Nothing runs in the background: the file is read when the island or panel opens.</summary>
 public sealed class NotesModule : IModule
 {
-    private static readonly string FilePath = Path.Combine(AppPaths.LocalDir, "notes.dat");
+    private static readonly string FilePath = Path.Combine(AppPaths.DataDir, "notes.dat");
     private NotesFile? _data;
 
     public ModuleInfo Info { get; } = ModuleCatalog.Get("notes");

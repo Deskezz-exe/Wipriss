@@ -9,6 +9,7 @@ internal static class Native
     public const int GWL_EXSTYLE = -20;
     public const int WS_EX_TOOLWINDOW = 0x00000080;
     public const int WS_EX_NOACTIVATE = 0x08000000;
+    public const uint WDA_EXCLUDEFROMCAPTURE = 0x11;
     public const int WS_POPUP = unchecked((int)0x80000000);
 
     public const int WM_NULL = 0x0000;
@@ -76,6 +77,9 @@ internal static class Native
 
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
     public static extern nint SetWindowLongPtr(IntPtr hWnd, int index, nint value);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint affinity);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern uint RegisterWindowMessage(string message);

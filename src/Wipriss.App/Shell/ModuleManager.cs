@@ -42,6 +42,8 @@ internal sealed class ModuleManager : IModuleHost
 
     public void RaiseTimeChanged() => TimeChanged?.Invoke();
 
+    public void TrimMemory() => CrashLog.RunWhenIdle(Dispatcher, MemoryTrim.Trim);
+
     public void StopAll()
     {
         _store.Changed -= Sync;

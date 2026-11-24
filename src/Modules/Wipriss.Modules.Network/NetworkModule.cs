@@ -19,7 +19,7 @@ internal sealed partial class TrustJson : JsonSerializerContext;
 /// <summary>Programs the user marked as "mine, I trust it". Encrypted like the other local data.</summary>
 internal sealed class TrustList
 {
-    private static readonly string FilePath = Path.Combine(AppPaths.LocalDir, "network-trust.dat");
+    private static readonly string FilePath = Path.Combine(AppPaths.DataDir, "network-trust.dat");
     private TrustFile? _data;
 
     private TrustFile Data => _data ??= SecureStore.ReadJson(FilePath, TrustJson.Default.TrustFile) ?? new TrustFile();

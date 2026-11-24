@@ -40,7 +40,7 @@ internal sealed partial class ReminderJson : JsonSerializerContext;
 public sealed class RemindersModule : IModule
 {
     private const int KeepPast = 10;
-    private static readonly string FilePath = Path.Combine(AppPaths.LocalDir, "reminders.dat");
+    private static readonly string FilePath = Path.Combine(AppPaths.DataDir, "reminders.dat");
 
     private readonly List<BannerWindow> _banners = [];
     private RemindersFile _data = new();

@@ -37,6 +37,12 @@ public interface IModuleHost
 
     /// <summary>Opens a module's panel under the island.</summary>
     void OpenPanel(string moduleId);
+
+    /// <summary>
+    /// Give memory back to Windows once the UI is idle. Call after closing a window that held big data
+    /// (a screenshot, a document): the garbage collector alone may keep it for a long time.
+    /// </summary>
+    void TrimMemory();
 }
 
 /// <summary>The window a panel lives in.</summary>

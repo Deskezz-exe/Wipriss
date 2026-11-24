@@ -2,6 +2,9 @@
   "version": 1,
   "dependencies": {
     "net10.0-windows7.0": {
+      "wipriss.capture": {
+        "type": "Project"
+      },
       "wipriss.core": {
         "type": "Project"
       },
@@ -9,6 +12,13 @@
         "type": "Project",
         "dependencies": {
           "Wipriss.ProcessTools": "[0.1.0, )"
+        }
+      },
+      "wipriss.modules.capture": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Capture": "[0.1.0, )",
+          "Wipriss.Core": "[0.1.0, )"
         }
       },
       "wipriss.modules.clipboardhistory": {

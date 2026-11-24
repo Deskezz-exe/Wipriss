@@ -15,6 +15,7 @@
     <ProjectReference Include="..\..\src\Wipriss.Core\Wipriss.Core.csproj" />
     <ProjectReference Include="..\..\src\Modules\Wipriss.Modules.Reminders\Wipriss.Modules.Reminders.csproj" />
     <ProjectReference Include="..\..\src\Wipriss.ProcessTools\Wipriss.ProcessTools.csproj" />
+    <ProjectReference Include="..\..\src\Wipriss.Capture\Wipriss.Capture.csproj" />
   </ItemGroup>
 
   <ItemGroup>

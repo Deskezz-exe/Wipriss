@@ -19,6 +19,7 @@ public partial class App : Application
         new("reminders", () => new Wipriss.Modules.Reminders.RemindersModule()),
         new("network", () => new Wipriss.Modules.Network.NetworkModule()),
         new("ports", () => new Wipriss.Modules.Ports.PortsModule()),
+        new("capture", () => new Wipriss.Modules.Capture.CaptureModule()),
     ];
 
     private SingleInstance? _instance;
@@ -43,6 +44,7 @@ public partial class App : Application
 
         CrashLog.Install(this);
         Native.AllowDarkMenus();
+        DataFolder.Prepare(); // one Wipriss folder; moves data from older versions before anything reads it
 
         _store = new SettingsStore(AppPaths.SettingsFile);
         _modules = new ModuleManager(_store, Registrations, Dispatcher);
@@ -129,6 +131,7 @@ public partial class App : Application
         {
             _settings = new SettingsWindow(_store, _modules);
             _settings.ExitRequested += ExitApp;
+            _settings.MoveFolderRequested += MoveDataFolder;
             _settings.Closed += (_, _) =>
             {
                 _settings = null;
@@ -139,6 +142,34 @@ public partial class App : Application
 
         if (_settings.WindowState == WindowState.Minimized) _settings.WindowState = WindowState.Normal;
         _settings.Activate();
+    }
+
+    /// <summary>
+    /// Moves the Wipriss folder. Modules stop first so no file is open, and the app restarts
+    /// afterwards because every path is read at startup.
+    /// </summary>
+    private void MoveDataFolder(string newRoot)
+    {
+        _modules?.StopAll();
+        string? problem = DataFolder.MoveTo(newRoot);
+        if (problem is not null)
+            MessageBox.Show(problem, "Wipriss", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+        _flyout?.Close();
+        _settings?.Close();
+        _island?.Close();
+        _tray?.Dispose();
+        _instance?.Dispose(); // release single-instance first, so the new copy can start
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!, "--settings") { UseShellExecute = false });
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex);
+        }
+
+        Shutdown();
     }
 
     private void ExitApp()

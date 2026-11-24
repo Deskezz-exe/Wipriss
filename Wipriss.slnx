@@ -1,11 +1,13 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Wipriss.App/Wipriss.App.csproj" />
+    <Project Path="src/Wipriss.Capture/Wipriss.Capture.csproj" />
     <Project Path="src/Wipriss.Core/Wipriss.Core.csproj" />
     <Project Path="src/Wipriss.Helper/Wipriss.Helper.csproj" />
     <Project Path="src/Wipriss.ProcessTools/Wipriss.ProcessTools.csproj" />
   </Folder>
   <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/Wipriss.Modules.Capture/Wipriss.Modules.Capture.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.ClipboardHistory/Wipriss.Modules.ClipboardHistory.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Notes/Wipriss.Modules.Notes.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Ports/Wipriss.Modules.Ports.csproj" />

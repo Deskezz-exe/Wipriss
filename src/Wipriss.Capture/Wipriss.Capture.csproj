@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Screen capture without UI: grabbing pixels, monitors and windows, scrolling and stitching.
+    No WPF here, so the stitching can be tested on plain pixel arrays.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Wipriss.Capture</RootNamespace>
+  </PropertyGroup>
+
+</Project>
