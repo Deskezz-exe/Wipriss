@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Reading processes and ports, and stopping processes safely.
+    No WPF here: the admin helper uses this library too and should stay small.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Wipriss.ProcessTools</RootNamespace>
+  </PropertyGroup>
+
+</Project>

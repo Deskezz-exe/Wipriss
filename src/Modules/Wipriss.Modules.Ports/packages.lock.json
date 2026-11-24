@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows7.0": {
+      "wipriss.core": {
+        "type": "Project"
+      },
+      "wipriss.processtools": {
+        "type": "Project"
+      }
+    }
+  }
+}

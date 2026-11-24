@@ -205,6 +205,31 @@
         </Setter>
     </Style>
 
+    <!-- A confirmed destructive action, like ending a program: muted brick, never bright red -->
+    <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource PlainButton}">
+        <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+        <Setter Property="Background" Value="#261A17" />
+        <Setter Property="BorderBrush" Value="#553730" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bg" CornerRadius="8" Padding="13,6" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="#311F1B" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="#261A17" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="TileBorder" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource TileBrush}" />
         <Setter Property="BorderBrush" Value="#1E1C1A" />

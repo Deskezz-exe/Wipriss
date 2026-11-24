@@ -16,6 +16,7 @@ Only the latest release gets security fixes.
 - **Local data stays local and encrypted.** Clipboard history, notes and reminders live in `%LocalAppData%\Wipriss`, encrypted with Windows DPAPI for your user account only. Content that password managers mark as private is never stored.
 - **Voice never leaves your PC.** The microphone is on only while recording, and the island shows it.
 - **Least privilege.** The app runs without admin rights. Admin actions go through a one-shot helper that you approve via UAC and that accepts only fixed, validated commands.
+- **Careful with processes.** Only programs on your own desktop can be stopped, always after a confirmation. Core Windows processes, services, Docker, WSL and Wipriss itself are off limits. Every target is matched by its process ID and start time, so a reused ID never hits another program.
 - **Safe cleaning.** Nothing is deleted without being shown first. Deletion goes to a restorable quarantine, symbolic links are never followed, and core Windows folders cannot be selected.
 - **Untrusted files are sandboxed.** Documents open in a separate process without extra rights. PDF JavaScript and spreadsheet macros never run.
 - **Verified downloads.** Models and engines come over HTTPS from pinned URLs and are checked against SHA-256 before use.

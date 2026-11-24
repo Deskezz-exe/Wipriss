@@ -2,10 +2,14 @@
   <Folder Name="/src/">
     <Project Path="src/Wipriss.App/Wipriss.App.csproj" />
     <Project Path="src/Wipriss.Core/Wipriss.Core.csproj" />
+    <Project Path="src/Wipriss.Helper/Wipriss.Helper.csproj" />
+    <Project Path="src/Wipriss.ProcessTools/Wipriss.ProcessTools.csproj" />
   </Folder>
   <Folder Name="/src/Modules/">
     <Project Path="src/Modules/Wipriss.Modules.ClipboardHistory/Wipriss.Modules.ClipboardHistory.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Notes/Wipriss.Modules.Notes.csproj" />
+    <Project Path="src/Modules/Wipriss.Modules.Ports/Wipriss.Modules.Ports.csproj" />
+    <Project Path="src/Modules/Wipriss.Modules.Processes/Wipriss.Modules.Processes.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Reminders/Wipriss.Modules.Reminders.csproj" />
   </Folder>
   <Folder Name="/tests/">

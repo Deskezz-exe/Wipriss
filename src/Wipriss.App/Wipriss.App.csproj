@@ -23,6 +23,10 @@
     <ProjectReference Include="..\Modules\Wipriss.Modules.Notes\Wipriss.Modules.Notes.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.ClipboardHistory\Wipriss.Modules.ClipboardHistory.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Reminders\Wipriss.Modules.Reminders.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Processes\Wipriss.Modules.Processes.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Ports\Wipriss.Modules.Ports.csproj" />
+    <!-- The one-shot admin helper ships next to Wipriss.exe -->
+    <ProjectReference Include="..\Wipriss.Helper\Wipriss.Helper.csproj" />
   </ItemGroup>
 
   <ItemGroup>

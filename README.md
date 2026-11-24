@@ -30,15 +30,15 @@ Wipriss is built with the help of AI (Claude Code).
 | Notes | Quick notes that survive crashes and reboots. Encrypted on disk. | ✅ ready |
 | Clipboard history | Last 20 copies, filter by text or images, skips password-manager content. Encrypted on disk. | ✅ ready |
 | Reminders | Banner (center, corner or none) at the exact time, with or without sound. One system timer, no polling. | ✅ ready |
-| Processes | Your running apps, with end task. | planned |
-| Ports | Which process holds which port, and a one-click stop for the whole process tree. | planned |
+| Processes | Your running apps grouped by program: memory, CPU, end task (with or without child processes), show in folder. Windows parts and services are hidden. | ✅ ready |
+| Ports | Which program holds which port (for example `node vite`), and a stop button for the whole process tree, including the `npm` that would restart it. Windows, services, Docker and WSL are marked and never stopped. | ✅ ready |
 | Screenshot & mini recording | PrtScreen replacement: area, window, scrolling capture, copy to clipboard, short screen recordings. | planned |
 | Image converter | Format, resolution, target file size, background removal. | planned |
 | PDF / XLSX / CSV reader | View and edit these files in a light window, optionally on double-click. | planned |
 | Voice typing | Press a key, speak, the text appears at the cursor. Runs fully offline. | planned |
 | Smart cleaner | Finds leftovers of uninstalled programs by checking what is actually installed, explains each item, deletes to a quarantine you can restore from. | planned |
 
-Tip: `Wipriss.exe --open notes` (or `clipboard`, `reminders`) opens a module directly. Put it in a shortcut with a hotkey for one-key access.
+Tip: `Wipriss.exe --open notes` (or `clipboard`, `reminders`, `processes`, `ports`) opens a module directly. Put it in a shortcut with a hotkey for one-key access.
 
 ## Thanks
 

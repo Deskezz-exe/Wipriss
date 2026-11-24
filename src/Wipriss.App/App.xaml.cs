@@ -17,6 +17,8 @@ public partial class App : Application
         new("notes", () => new Wipriss.Modules.Notes.NotesModule()),
         new("clipboard", () => new Wipriss.Modules.ClipboardHistory.ClipboardModule()),
         new("reminders", () => new Wipriss.Modules.Reminders.RemindersModule()),
+        new("processes", () => new Wipriss.Modules.Processes.ProcessesModule()),
+        new("ports", () => new Wipriss.Modules.Ports.PortsModule()),
     ];
 
     private SingleInstance? _instance;

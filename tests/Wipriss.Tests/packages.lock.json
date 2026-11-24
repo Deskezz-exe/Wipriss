@@ -101,6 +101,9 @@
         "dependencies": {
           "Wipriss.Core": "[0.1.0, )"
         }
+      },
+      "wipriss.processtools": {
+        "type": "Project"
       }
     }
   }

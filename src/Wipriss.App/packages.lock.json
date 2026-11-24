@@ -5,6 +5,12 @@
       "wipriss.core": {
         "type": "Project"
       },
+      "wipriss.helper": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.ProcessTools": "[0.1.0, )"
+        }
+      },
       "wipriss.modules.clipboardhistory": {
         "type": "Project",
         "dependencies": {
@@ -17,11 +23,28 @@
           "Wipriss.Core": "[0.1.0, )"
         }
       },
+      "wipriss.modules.ports": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )",
+          "Wipriss.ProcessTools": "[0.1.0, )"
+        }
+      },
+      "wipriss.modules.processes": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )",
+          "Wipriss.ProcessTools": "[0.1.0, )"
+        }
+      },
       "wipriss.modules.reminders": {
         "type": "Project",
         "dependencies": {
           "Wipriss.Core": "[0.1.0, )"
         }
+      },
+      "wipriss.processtools": {
+        "type": "Project"
       }
     }
   }

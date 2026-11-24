@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    One-shot admin helper. Windows shows the UAC prompt when it starts (requireAdministrator).
+    It accepts a single fixed command, checks every target again, does it and exits.
+    No window, no WPF, nothing stays running.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Wipriss.Helper</AssemblyName>
+    <RootNamespace>Wipriss.Helper</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\Wipriss.App\Assets\wipriss.ico</ApplicationIcon>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wipriss.ProcessTools\Wipriss.ProcessTools.csproj" />
+  </ItemGroup>
+
+</Project>
