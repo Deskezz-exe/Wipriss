@@ -1,0 +1,35 @@
+#!/bin/sh
+# Blocks commits that could leak personal data or secrets.
+# Enable once per clone:  git config core.hooksPath tools/git-hooks
+fail=0
+
+email=$(git config user.email)
+case "$email" in
+  *@users.noreply.github.com) ;;
+  *) echo "pre-commit: commit email must be a GitHub noreply address (git config user.email)"; fail=1 ;;
+esac
+
+git diff --cached --name-only --diff-filter=ACMR -- . ':(exclude)tools/git-hooks/*' > .git/precommit-files.tmp
+while IFS= read -r f; do
+  case "$f" in
+    .env|.env.*|*/.env|*.pfx|*.p12|*.pem|*.key|*.snk|*.jks|*id_rsa*|*id_ed25519*|*secrets*.json|*.db|*.sqlite|*.sqlite3|*.dmp)
+      echo "pre-commit: sensitive file type: $f"; fail=1 ;;
+  esac
+  size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+  if [ "$size" -gt 5242880 ]; then echo "pre-commit: file over 5 MB: $f"; fail=1; fi
+done < .git/precommit-files.tmp
+rm -f .git/precommit-files.tmp
+
+patterns='[A-Za-z]:[\\/]+Users[\\/]+[A-Za-z0-9._-]+|/home/[a-z0-9._-]+/|@(gmail|googlemail|yandex|ya|mail|bk|inbox|list|rambler|outlook|hotmail|live|icloud|me|proton|protonmail)\.[a-z]+|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|ghs_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|xox[abprs]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+hits=$(git diff --cached -U0 -- . ':(exclude)tools/git-hooks/*' | grep '^+' | grep -v '^+++' | grep -En "$patterns")
+if [ -n "$hits" ]; then
+  echo "pre-commit: possible personal data or secret in staged lines:"
+  echo "$hits" | cut -c1-200
+  fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "Commit blocked. Remove the data above from the repo, then commit again."
+  exit 1
+fi
+exit 0
