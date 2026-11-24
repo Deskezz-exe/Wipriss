@@ -1,9 +1,6 @@
-using System.Diagnostics;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 using Wipriss.Core;
 using Wipriss.Core.Modules;
 
@@ -13,6 +10,7 @@ public partial class CapturePanel : UserControl
 {
     private readonly CaptureModule _module;
     private readonly IPanelContext _panel;
+    private bool _showing;
 
     internal CapturePanel(CaptureModule module, IPanelContext panel)
     {
@@ -24,41 +22,45 @@ public partial class CapturePanel : UserControl
 
     private void ShowState()
     {
-        bool snipping = PrintScreenSetting.SnippingToolTakesKey;
-        if (!_module.KeyRegistered)
+        _showing = true;
+        OwnKey.IsChecked = _module.PrintScreen.OwnedByWipriss;
+        _showing = false;
+
+        bool waiting = false;
+        if (!_module.PrintScreen.OwnedByWipriss)
         {
-            Show("DangerBrush", "PrtSc занят другой программой",
-                "Например, Lightshot, Яндекс.Диск или OneDrive. Отключите там PrtSc и включите этот модуль заново. Пока можно снимать кнопкой ниже.");
-            FixButton.Visibility = Visibility.Collapsed;
+            Show("FaintTextBrush", "PrtSc открывает «Ножницы» Windows. Включите, чтобы клавиша была у Wipriss.");
+            waiting = _module.PrintScreen.WaitingForExplorer;
         }
-        else if (snipping)
+        else if (!_module.KeyRegistered)
         {
-            Show("WarnBrush", "Сейчас PrtSc открывает «Ножницы» Windows",
-                "В Windows 11 включено «Открывать Ножницы клавишей PrtSc». Кнопка выключит только эту настройку, вернуть её можно здесь же.");
-            FixButton.Visibility = Visibility.Visible;
+            Show("DangerBrush", "PrtSc занят другой программой, например Lightshot, Яндекс.Диском или OneDrive. Отключите PrtSc там и включите переключатель заново.");
+        }
+        else if (_module.PrintScreen.WaitingForExplorer)
+        {
+            Show("WarnBrush", "Почти готово: Windows применит это после перезапуска Проводника. До тех пор PrtSc ещё открывает «Ножницы».");
+            waiting = true;
         }
         else
         {
-            Show("OkBrush", "PrtSc открывает Wipriss", "Работает поверх любых окон, в том числе запущенных от имени администратора.");
-            FixButton.Visibility = Visibility.Collapsed;
+            Show("OkBrush", "Работает поверх любых окон, в том числе запущенных от имени администратора. Wipriss следит, чтобы после обновлений Windows клавиша не вернулась к «Ножницам». «Ножницы» остаются на Win+Shift+S.");
         }
 
-        RestoreButton.Visibility = !snipping ? Visibility.Visible : Visibility.Collapsed;
+        RestartBox.Visibility = waiting ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void Show(string brush, string title, string text)
+    private void Show(string brush, string text)
     {
         StateDot.Fill = (Brush)FindResource(brush);
-        StateTitle.Text = title;
         StateText.Text = text;
     }
 
-    private void Fix_Click(object sender, RoutedEventArgs e)
+    private void OwnKey_Changed(object sender, RoutedEventArgs e)
     {
+        if (_showing || _module is null) return;
         try
         {
-            PrintScreenSetting.GiveKeyToWipriss(true);
-            _module.RetryKey();
+            _module.SetOwnPrintScreen(OwnKey.IsChecked == true);
         }
         catch (Exception ex)
         {
@@ -68,43 +70,25 @@ public partial class CapturePanel : UserControl
         ShowState();
     }
 
-    private void Restore_Click(object sender, RoutedEventArgs e)
+    private async void Restart_Click(object sender, RoutedEventArgs e)
     {
-        try
+        RestartButton.IsEnabled = false;
+        // Explorer going away moves focus around; the panel must stay to show the result.
+        using (_panel.KeepOpen())
         {
-            PrintScreenSetting.GiveKeyToWipriss(false);
-        }
-        catch (Exception ex)
-        {
-            ErrorLog.Write(ex);
+            try
+            {
+                await PrintScreenKey.RestartExplorerAsync();
+                await Task.Delay(1500); // let the new Explorer finish starting before checking again
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Write(ex);
+            }
         }
 
+        RestartButton.IsEnabled = true;
+        _module.RetryKey();
         ShowState();
-    }
-
-    /// <summary>Closes the panel first so it isn't in the picture, then freezes the screen.</summary>
-    private void Shoot_Click(object sender, RoutedEventArgs e)
-    {
-        _panel.Close();
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-        timer.Tick += (_, _) =>
-        {
-            timer.Stop();
-            _module.TakeScreenshot();
-        };
-        timer.Start();
-    }
-
-    private void Folder_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            Directory.CreateDirectory(AppPaths.ScreenshotsDir);
-            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{AppPaths.ScreenshotsDir}\"") { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            ErrorLog.Write(ex);
-        }
     }
 }

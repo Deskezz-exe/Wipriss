@@ -2,31 +2,30 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <StackPanel>
-        <!-- Is PrtSc ours? -->
-        <Border Style="{StaticResource Card}" Padding="14,12">
+        <!-- Who gets PrtSc -->
+        <Border Style="{StaticResource Card}" Padding="16,6,16,12">
             <StackPanel>
-                <DockPanel>
-                    <Ellipse x:Name="StateDot" Width="8" Height="8" Margin="0,1,10,0" VerticalAlignment="Center" />
-                    <TextBlock x:Name="StateTitle" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <CheckBox x:Name="OwnKey" Style="{StaticResource ToggleSwitch}" Margin="0,8" Content="PrtSc открывает Wipriss"
+                          Checked="OwnKey_Changed" Unchecked="OwnKey_Changed" />
+                <DockPanel Margin="0,2,0,0">
+                    <Ellipse x:Name="StateDot" Width="7" Height="7" Margin="1,5,9,0" VerticalAlignment="Top" />
+                    <TextBlock x:Name="StateText" Style="{StaticResource Caption}" />
                 </DockPanel>
-                <TextBlock x:Name="StateText" Style="{StaticResource Caption}" Margin="18,4,0,0" />
-                <Button x:Name="FixButton" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="18,10,0,0"
-                        Content="Сделать PrtSc клавишей Wipriss" Click="Fix_Click" Visibility="Collapsed" />
+
+                <!-- Windows reads the setting when Explorer starts -->
+                <StackPanel x:Name="RestartBox" Margin="16,10,0,0" Visibility="Collapsed">
+                    <Button x:Name="RestartButton" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"
+                            Content="Перезапустить Проводник" Click="Restart_Click" />
+                    <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" Foreground="{StaticResource FaintTextBrush}"
+                               Text="Панель задач пропадёт на секунду, открытые окна папок закроются. Или просто перезагрузите компьютер." />
+                </StackPanel>
             </StackPanel>
         </Border>
-
-        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-            <Button Style="{StaticResource PlainButton}" Content="Снять сейчас" Click="Shoot_Click" />
-            <Button Style="{StaticResource PlainButton}" Content="Папка скриншотов" Margin="8,0,0,0" Click="Folder_Click" />
-        </StackPanel>
 
         <TextBlock Text="Как это работает" Style="{StaticResource SectionTitle}" Margin="2,18,0,6" />
         <TextBlock Style="{StaticResource Caption}" Margin="2,0,0,0" LineHeight="18"
                    Text="PrtSc замораживает экран. Дальше: выделите область или щёлкните по окну, «Весь экран», или «Со скроллом», и страница пролистается и склеится сама." />
         <TextBlock Style="{StaticResource Caption}" Margin="2,8,0,0" LineHeight="18"
-                   Text="Снимок сразу в буфере: Ctrl+V в любом чате. Он не попадает ни в историю буфера Windows, ни в буфер Wipriss. На диск он ложится только по кнопке «Сохранить» в редакторе." />
-
-        <Button x:Name="RestoreButton" Style="{StaticResource PlainButton}" FontSize="12" HorizontalAlignment="Left" Margin="0,16,0,0"
-                Content="Вернуть PrtSc «Ножницам» Windows" Click="Restore_Click" Visibility="Collapsed" />
+                   Text="Снимок сразу в буфере: Ctrl+V в любом чате. Он не попадает ни в историю буфера Windows, ни в буфер Wipriss. На диск он ложится только по кнопке «Сохранить» в редакторе, в папку Wipriss\Скриншоты." />
     </StackPanel>
 </UserControl>

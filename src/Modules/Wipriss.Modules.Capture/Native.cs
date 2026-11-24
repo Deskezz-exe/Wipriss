@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
-using Microsoft.Win32;
 
 namespace Wipriss.Modules.Capture;
 
@@ -32,30 +31,4 @@ internal static class Native
     [DllImport("user32.dll")] private static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hwnd);
-}
-
-/// <summary>
-/// Windows 11 can open Snipping Tool on PrtSc ("Use the Print screen key to open screen capture").
-/// While that is on, both would react. This reads and changes that one setting, only when the user presses the button.
-/// </summary>
-internal static class PrintScreenSetting
-{
-    private const string Key = @"Control Panel\Keyboard";
-    private const string Value = "PrintScreenKeyForSnippingEnabled";
-
-    /// <summary>True when Windows sends PrtSc to Snipping Tool. Missing value means on (the Windows 11 default).</summary>
-    public static bool SnippingToolTakesKey
-    {
-        get
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(Key);
-            return key?.GetValue(Value) is not int value || value != 0;
-        }
-    }
-
-    public static void GiveKeyToWipriss(bool toWipriss)
-    {
-        using var key = Registry.CurrentUser.CreateSubKey(Key);
-        key.SetValue(Value, toWipriss ? 0 : 1, RegistryValueKind.DWord);
-    }
 }
