@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <Deterministic>true</Deterministic>
+
+    <!-- Security: lock exact dependency versions -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+
+    <!-- Privacy: never embed the builder's local folder paths into binaries or PDBs -->
+    <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))=/wipriss/</PathMap>
+
+    <Version>0.1.0</Version>
+    <Company>Wipriss</Company>
+    <Product>Wipriss</Product>
+    <Copyright>Copyright (c) 2026 Deskezz-exe</Copyright>
+  </PropertyGroup>
+</Project>

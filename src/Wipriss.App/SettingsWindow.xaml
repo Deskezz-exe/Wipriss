@@ -1,0 +1,48 @@
+<Window x:Class="Wipriss.App.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Wipriss · Настройки"
+        Width="460" SizeToContent="Height" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}"
+        FontFamily="{StaticResource UiFont}" FontSize="13" UseLayoutRounding="True">
+
+    <StackPanel Margin="24,20,24,22">
+
+        <TextBlock Text="Островок" FontSize="16" FontWeight="SemiBold" />
+        <Border Margin="0,10,0,0" Padding="16,6" CornerRadius="10" Background="{StaticResource CardBrush}">
+            <StackPanel>
+                <CheckBox x:Name="HideInFullscreenToggle" Style="{StaticResource ToggleSwitch}" Margin="0,8"
+                          Content="Скрывать, когда игра или видео на весь экран" />
+                <CheckBox x:Name="AutostartToggle" Style="{StaticResource ToggleSwitch}" Margin="0,8"
+                          Content="Запускать вместе с Windows" />
+            </StackPanel>
+        </Border>
+
+        <TextBlock Text="Модули" Margin="0,22,0,0" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock Text="Выключенный модуль не загружается вообще и не тратит память."
+                   Margin="0,4,0,0" Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap" />
+        <Border Margin="0,10,0,0" Padding="16,4" CornerRadius="10" Background="{StaticResource CardBrush}">
+            <ItemsControl x:Name="ModuleList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <CheckBox Style="{StaticResource ToggleSwitch}" Margin="0,7" IsChecked="{Binding Enabled, Mode=TwoWay}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Info.Glyph}" FontFamily="{StaticResource IconFont}" FontSize="15"
+                                           Width="26" VerticalAlignment="Center" />
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Info.Title}" />
+                                    <TextBlock Text="{Binding Info.StageText}" FontSize="11" Foreground="{StaticResource SubtleTextBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </CheckBox>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+
+        <DockPanel Margin="0,20,0,0">
+            <Button DockPanel.Dock="Right" Style="{StaticResource PlainButton}" Content="Выйти из Wipriss" Click="Exit_Click" />
+            <TextBlock x:Name="VersionText" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" />
+        </DockPanel>
+    </StackPanel>
+</Window>

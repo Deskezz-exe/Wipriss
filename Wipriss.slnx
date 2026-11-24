@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Wipriss.App/Wipriss.App.csproj" />
+    <Project Path="src/Wipriss.Core/Wipriss.Core.csproj" />
+  </Folder>
+</Solution>

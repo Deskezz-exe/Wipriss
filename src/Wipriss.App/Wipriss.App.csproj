@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Wipriss</AssemblyName>
+    <RootNamespace>Wipriss.App</RootNamespace>
+    <ApplicationIcon>Assets\wipriss.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- Low memory: workstation GC without the background GC thread -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ask the GC to compact more aggressively instead of growing the heap -->
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wipriss.Core\Wipriss.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\tray-light.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\tray-dark.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
