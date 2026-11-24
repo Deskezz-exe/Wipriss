@@ -23,20 +23,22 @@ Wipriss is built with the help of AI (Claude Code).
 - **Private.** No telemetry, no accounts. Your data stays on your PC and is encrypted. See [SECURITY.md](SECURITY.md).
 - **Modular.** Turn any module off and it isn't loaded at all. New modules plug in without touching the core.
 
-## Planned modules
+## Modules
 
-| Module | What it does |
-|---|---|
-| Reminders | Banner (center, corner or none) at the exact time, with or without sound. No polling. |
-| Clipboard history | Last 20 copies, filter by text or images, skips password-manager content. |
-| Processes | Your running apps, with end task. |
-| Ports | Which process holds which port, and a one-click stop for the whole process tree. |
-| Smart cleaner | Finds leftovers of uninstalled programs by checking what is actually installed, explains each item, deletes to a quarantine you can restore from. |
-| Screenshot & mini recording | PrtScreen replacement: area, window, scrolling capture, copy to clipboard, short screen recordings. |
-| Voice typing | Press a key, speak, the text appears at the cursor. Runs fully offline. |
-| Notes | Quick notes that survive crashes and reboots. |
-| Image converter | Format, resolution, target file size, background removal. |
-| PDF / XLSX / CSV reader | View and edit these files in a light window, optionally on double-click. |
+| Module | What it does | Status |
+|---|---|---|
+| Notes | Quick notes that survive crashes and reboots. Encrypted on disk. | ✅ ready |
+| Clipboard history | Last 20 copies, filter by text or images, skips password-manager content. Encrypted on disk. | ✅ ready |
+| Reminders | Banner (center, corner or none) at the exact time, with or without sound. One system timer, no polling. | ✅ ready |
+| Processes | Your running apps, with end task. | planned |
+| Ports | Which process holds which port, and a one-click stop for the whole process tree. | planned |
+| Screenshot & mini recording | PrtScreen replacement: area, window, scrolling capture, copy to clipboard, short screen recordings. | planned |
+| Image converter | Format, resolution, target file size, background removal. | planned |
+| PDF / XLSX / CSV reader | View and edit these files in a light window, optionally on double-click. | planned |
+| Voice typing | Press a key, speak, the text appears at the cursor. Runs fully offline. | planned |
+| Smart cleaner | Finds leftovers of uninstalled programs by checking what is actually installed, explains each item, deletes to a quarantine you can restore from. | planned |
+
+Tip: `Wipriss.exe --open notes` (or `clipboard`, `reminders`) opens a module directly. Put it in a shortcut with a hotkey for one-key access.
 
 ## Thanks
 

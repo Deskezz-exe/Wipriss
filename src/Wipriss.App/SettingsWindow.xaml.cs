@@ -12,14 +12,14 @@ public partial class SettingsWindow : Window
 {
     private readonly SettingsStore _store;
 
-    public SettingsWindow(SettingsStore store)
+    internal SettingsWindow(SettingsStore store, ModuleManager modules)
     {
         InitializeComponent();
         _store = store;
 
         HideInFullscreenToggle.IsChecked = store.Current.HideInFullscreen;
         AutostartToggle.IsChecked = Autostart.IsEnabled;
-        ModuleList.ItemsSource = ModuleCatalog.All.Select(m => new ModuleToggle(m, store)).ToList();
+        ModuleList.ItemsSource = ModuleCatalog.All.Select(m => new ModuleToggle(m, store, modules.IsBuilt(m.Id))).ToList();
 
         var version = typeof(App).Assembly.GetName().Version;
         VersionText.Text = version is null ? "Wipriss" : $"Wipriss {version.Major}.{version.Minor}.{version.Build}";
@@ -43,9 +43,11 @@ public partial class SettingsWindow : Window
 }
 
 /// <summary>One row in the module list.</summary>
-public sealed class ModuleToggle(ModuleInfo info, SettingsStore store)
+public sealed class ModuleToggle(ModuleInfo info, SettingsStore store, bool built)
 {
     public ModuleInfo Info { get; } = info;
+
+    public string Subtitle => built ? Info.Description : Info.StageText;
 
     public bool Enabled
     {

@@ -42,11 +42,12 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Style="{StaticResource TileBorder}" Height="80" ToolTip="{Binding Description}">
+                                <Border Style="{StaticResource TileBorder}" Height="80" ToolTip="{Binding Description}"
+                                        Opacity="{Binding Opacity}" Cursor="{Binding Cursor}" MouseLeftButtonUp="Tile_Click">
                                     <StackPanel>
                                         <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="18" />
                                         <TextBlock Text="{Binding Title}" Margin="0,8,0,0" FontSize="12" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Text="{Binding StageText}" Margin="0,2,0,0" FontSize="10.5"
+                                        <TextBlock Text="{Binding Subtitle}" Margin="0,2,0,0" FontSize="10.5"
                                                    Foreground="{StaticResource SubtleTextBrush}" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
                                 </Border>

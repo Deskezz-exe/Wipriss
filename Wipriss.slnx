@@ -3,4 +3,12 @@
     <Project Path="src/Wipriss.App/Wipriss.App.csproj" />
     <Project Path="src/Wipriss.Core/Wipriss.Core.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/Wipriss.Modules.ClipboardHistory/Wipriss.Modules.ClipboardHistory.csproj" />
+    <Project Path="src/Modules/Wipriss.Modules.Notes/Wipriss.Modules.Notes.csproj" />
+    <Project Path="src/Modules/Wipriss.Modules.Reminders/Wipriss.Modules.Reminders.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Wipriss.Tests/Wipriss.Tests.csproj" />
+  </Folder>
 </Solution>

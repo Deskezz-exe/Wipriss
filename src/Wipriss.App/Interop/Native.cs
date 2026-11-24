@@ -13,6 +13,7 @@ internal static class Native
 
     public const int WM_NULL = 0x0000;
     public const int WM_SETTINGCHANGE = 0x001A;
+    public const int WM_TIMECHANGE = 0x001E;
     public const int WM_DISPLAYCHANGE = 0x007E;
     public const int WM_LBUTTONUP = 0x0202;
     public const int WM_RBUTTONUP = 0x0205;

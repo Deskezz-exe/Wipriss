@@ -1,0 +1,83 @@
+<UserControl x:Class="Wipriss.Modules.Reminders.RemindersPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <DataTemplate x:Key="ReminderRow">
+            <Border Style="{StaticResource ListCard}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" VerticalAlignment="Top" Style="{StaticResource IconButton}"
+                            Content="&#xE711;" ToolTip="Удалить" Click="Delete_Click" />
+                    <StackPanel>
+                        <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding When}" Margin="0,2,0,0" FontSize="11.5"
+                                   Foreground="{StaticResource SubtleTextBrush}" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <!-- New reminder -->
+        <StackPanel DockPanel.Dock="Top">
+            <TextBox x:Name="TitleBox" Style="{StaticResource InputBox}" Tag="Что напомнить? Например: матч Реал - Барселона"
+                     KeyDown="Field_KeyDown" />
+            <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="104" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="DateBox" Style="{StaticResource InputBox}" Tag="Дата: сегодня, 30.11"
+                         TextChanged="Field_Changed" KeyDown="Field_KeyDown" />
+                <TextBox x:Name="TimeBox" Grid.Column="2" Style="{StaticResource InputBox}" Tag="Время: 21:00"
+                         TextChanged="Field_Changed" KeyDown="Field_KeyDown" />
+                <Button Grid.Column="4" Style="{StaticResource PlainButton}" Content="Добавить" Click="Add_Click" />
+            </Grid>
+            <TextBlock x:Name="PreviewText" Margin="2,7,0,0" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+            <WrapPanel Margin="0,8,0,0">
+                <Button Style="{StaticResource PlainButton}" FontSize="12" Content="Через 10 мин" Tag="10m" Click="Quick_Click" Margin="0,0,6,0" />
+                <Button Style="{StaticResource PlainButton}" FontSize="12" Content="Через час" Tag="1h" Click="Quick_Click" Margin="0,0,6,0" />
+                <Button Style="{StaticResource PlainButton}" FontSize="12" Content="Завтра в 9:00" Tag="tomorrow9" Click="Quick_Click" />
+            </WrapPanel>
+        </StackPanel>
+
+        <!-- How reminders alert -->
+        <Border DockPanel.Dock="Bottom" Margin="0,12,0,0" Padding="14,4" CornerRadius="10" Background="{StaticResource CardBrush}">
+            <StackPanel>
+                <CheckBox x:Name="SoundToggle" Style="{StaticResource ToggleSwitch}" Margin="0,8" Content="Звук" />
+                <DockPanel Margin="0,4,0,10">
+                    <TextBlock Text="Плашка" VerticalAlignment="Center" Width="58" />
+                    <Button DockPanel.Dock="Right" Style="{StaticResource PlainButton}" FontSize="12" Content="Проверить"
+                            Click="Test_Click" />
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="PlaceCenter" Style="{StaticResource Segment}" GroupName="BannerPlace" Content="По центру" />
+                        <RadioButton x:Name="PlaceCorner" Style="{StaticResource Segment}" GroupName="BannerPlace" Content="Справа" />
+                        <RadioButton x:Name="PlaceNone" Style="{StaticResource Segment}" GroupName="BannerPlace" Content="Нет" />
+                    </StackPanel>
+                </DockPanel>
+                <TextBlock x:Name="SilentHint" Margin="0,0,0,10" FontSize="11.5" TextWrapping="Wrap" Visibility="Collapsed"
+                           Foreground="#E5A619" Text="Без звука и без плашки напоминание будет видно только в этом списке." />
+            </StackPanel>
+        </Border>
+
+        <!-- Lists -->
+        <ScrollViewer Margin="0,14,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <TextBlock Text="Предстоящие" FontWeight="SemiBold" Margin="2,0,0,8" />
+                <TextBlock x:Name="NoUpcoming" Text="Пока ничего не запланировано." Margin="2,0,0,10"
+                           Foreground="{StaticResource SubtleTextBrush}" />
+                <ItemsControl x:Name="UpcomingList" ItemTemplate="{StaticResource ReminderRow}" />
+
+                <DockPanel x:Name="PastHeader" Margin="2,8,0,8">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource PlainButton}" FontSize="11.5" Content="Очистить"
+                            Click="ClearPast_Click" />
+                    <TextBlock Text="Прошедшие" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </DockPanel>
+                <ItemsControl x:Name="PastList" Opacity="0.6" ItemTemplate="{StaticResource ReminderRow}" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

@@ -20,6 +20,7 @@ public partial class IslandWindow : Window
     private const double ExpandedWidth = 548, ExpandedHeight = 244;
 
     private readonly SettingsStore _store;
+    private readonly ModuleManager _modules;
     private readonly DispatcherTimer _expandDelay;
     private readonly DispatcherTimer _collapseDelay;
     private FullscreenWatcher? _fullscreen;
@@ -27,10 +28,11 @@ public partial class IslandWindow : Window
     private bool _shownByUser = true;
     private bool _fullscreenAppInFront;
 
-    public IslandWindow(SettingsStore store)
+    internal IslandWindow(SettingsStore store, ModuleManager modules)
     {
         InitializeComponent();
         _store = store;
+        _modules = modules;
 
         // One-shot delays: they run only right after the mouse enters or leaves.
         _expandDelay = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(120) };
@@ -43,6 +45,9 @@ public partial class IslandWindow : Window
     }
 
     public event Action? SettingsRequested;
+
+    /// <summary>A built module's tile was clicked.</summary>
+    public event Action<string>? ModuleRequested;
 
     /// <summary>Hidden or shown from the tray menu.</summary>
     public bool IsShownByUser
@@ -84,6 +89,8 @@ public partial class IslandWindow : Window
     {
         if (msg is Native.WM_DISPLAYCHANGE or Native.WM_DPICHANGED)
             Dispatcher.BeginInvoke(PlaceAtTop);
+        else if (msg == Native.WM_TIMECHANGE)
+            _modules.RaiseTimeChanged();
         return IntPtr.Zero;
     }
 
@@ -99,8 +106,27 @@ public partial class IslandWindow : Window
         UpdateVisibility();
     }
 
+    /// <summary>Rebuilds the tiles. Runs when the island opens, so the module summaries are fresh.</summary>
     private void RefreshTiles() =>
-        Tiles.ItemsSource = ModuleCatalog.All.Where(m => _store.Current.IsModuleEnabled(m.Id)).ToList();
+        Tiles.ItemsSource = ModuleCatalog.All
+            .Where(m => _store.Current.IsModuleEnabled(m.Id))
+            .Select(m => _modules.Get(m.Id) is { } module
+                ? new TileItem(m, SafeSummary(module), IsReady: true)
+                : new TileItem(m, _modules.IsBuilt(m.Id) ? "не запустился" : m.StageText, IsReady: false))
+            .ToList();
+
+    private static string SafeSummary(IModule module)
+    {
+        try { return module.Summary; }
+        catch (Exception ex) { CrashLog.Write(ex); return ""; }
+    }
+
+    private void Tile_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: TileItem { IsReady: true } tile }) return;
+        CollapseNow();
+        ModuleRequested?.Invoke(tile.Info.Id);
+    }
 
     private void UpdateVisibility()
     {
@@ -159,6 +185,7 @@ public partial class IslandWindow : Window
 
         if (expand)
         {
+            RefreshTiles();
             CollapsedContent.Visibility = Visibility.Hidden;
             ExpandedContent.Visibility = Visibility.Visible;
             ExpandedContent.BeginAnimation(OpacityProperty,
@@ -185,4 +212,14 @@ public partial class IslandWindow : Window
         ExpandedContent.Visibility = Visibility.Collapsed;
         CollapsedContent.Visibility = Visibility.Visible;
     }
+}
+
+/// <summary>One tile on the open island.</summary>
+public sealed record TileItem(ModuleInfo Info, string Subtitle, bool IsReady)
+{
+    public string Glyph => Info.Glyph;
+    public string Title => Info.Title;
+    public string Description => Info.Description;
+    public double Opacity => IsReady ? 1.0 : 0.5;
+    public Cursor Cursor => IsReady ? Cursors.Hand : Cursors.Arrow;
 }

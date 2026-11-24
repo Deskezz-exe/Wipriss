@@ -1,0 +1,37 @@
+<UserControl x:Class="Wipriss.Modules.Notes.NotesPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button Style="{StaticResource PlainButton}" Content="+ Новая" Click="New_Click" />
+            <Button Style="{StaticResource PlainButton}" Content="Скопировать всё" Margin="8,0,0,0" Click="CopyAll_Click" />
+            <Button Style="{StaticResource PlainButton}" Content="Сохранить в файл" Margin="8,0,0,0" Click="Export_Click" />
+        </StackPanel>
+
+        <TextBlock x:Name="Hint" DockPanel.Dock="Bottom" Margin="2,10,0,0" FontSize="11.5" TextWrapping="Wrap"
+                   Foreground="{StaticResource SubtleTextBrush}"
+                   Text="Сохраняется само. Зашифровано и хранится только на этом компьютере." />
+
+        <Grid>
+            <TextBlock x:Name="EmptyText" Text="Здесь пока пусто. Нажмите «+ Новая»." HorizontalAlignment="Center"
+                       VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="List">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource ListCard}">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" VerticalAlignment="Top" Style="{StaticResource IconButton}"
+                                            Content="&#xE74D;" ToolTip="Удалить" Click="Delete_Click" MouseLeave="Delete_MouseLeave" />
+                                    <TextBox Style="{StaticResource NoteBox}" Tag="Текст заметки…"
+                                             Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                                             TextChanged="Note_TextChanged" Loaded="Note_Loaded" />
+                                </DockPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</UserControl>

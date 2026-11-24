@@ -16,4 +16,7 @@ public static class ModuleCatalog
         new("dictation",  "Голос",       "", "Говоришь, и текст печатается", 6),
         new("cleaner",    "Очистка",     "", "Находит остатки удалённых программ и мусор", 7),
     ];
+
+    public static ModuleInfo Get(string id) =>
+        All.FirstOrDefault(m => m.Id == id) ?? throw new ArgumentException($"Unknown module '{id}'.", nameof(id));
 }

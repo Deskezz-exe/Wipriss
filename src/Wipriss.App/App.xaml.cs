@@ -2,6 +2,7 @@ using System.Windows;
 using Wipriss.App.Interop;
 using Wipriss.App.Shell;
 using Wipriss.Core;
+using Wipriss.Core.Modules;
 using Wipriss.Core.Settings;
 
 namespace Wipriss.App;
@@ -10,11 +11,21 @@ public partial class App : Application
 {
     private const int MenuSettings = 1, MenuToggleIsland = 2, MenuExit = 3;
 
+    // Built modules. A factory runs only when its module is switched on.
+    private static readonly ModuleRegistration[] Registrations =
+    [
+        new("notes", () => new Wipriss.Modules.Notes.NotesModule()),
+        new("clipboard", () => new Wipriss.Modules.ClipboardHistory.ClipboardModule()),
+        new("reminders", () => new Wipriss.Modules.Reminders.RemindersModule()),
+    ];
+
     private SingleInstance? _instance;
     private SettingsStore? _store;
+    private ModuleManager? _modules;
     private IslandWindow? _island;
     private TrayIcon? _tray;
     private SettingsWindow? _settings;
+    private FlyoutWindow? _flyout;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -23,7 +34,7 @@ public partial class App : Application
         _instance = SingleInstance.TryAcquire();
         if (_instance is null)
         {
-            SingleInstance.SignalRunningInstance();
+            SingleInstance.SendToRunningInstance(e.Args);
             Shutdown();
             return;
         }
@@ -32,19 +43,60 @@ public partial class App : Application
         Native.AllowDarkMenus();
 
         _store = new SettingsStore(AppPaths.SettingsFile);
+        _modules = new ModuleManager(_store, Registrations, Dispatcher);
+        _modules.OpenRequested += OpenPanel;
+        _modules.Stopped += id => { if (_flyout?.ModuleId == id) _flyout.Close(); };
 
-        _island = new IslandWindow(_store);
+        _island = new IslandWindow(_store, _modules);
         _island.SettingsRequested += ShowSettings;
+        _island.ModuleRequested += OpenPanel;
         _island.Show();
 
         _tray = new TrayIcon("Wipriss");
         _tray.LeftClick += ShowSettings;
         _tray.MenuRequested += ShowTrayMenu;
 
-        _instance.Activated += () => Dispatcher.BeginInvoke(ShowSettings);
+        _instance.CommandReceived += args => Dispatcher.BeginInvoke(() => HandleCommand(args, fromOtherLaunch: true));
+        _instance.StartListening();
+        HandleCommand(e.Args, fromOtherLaunch: false);
 
         // Start-up allocations are done: give unused memory back once the UI is idle.
         CrashLog.RunWhenIdle(Dispatcher, MemoryTrim.Trim);
+    }
+
+    /// <summary>
+    /// Command line: <c>--open &lt;module&gt;</c> opens a panel (handy for a shortcut with a hotkey),
+    /// <c>--settings</c> opens settings. Launching again without arguments also opens settings.
+    /// </summary>
+    private void HandleCommand(string[] args, bool fromOtherLaunch)
+    {
+        int open = Array.IndexOf(args, "--open");
+        if (open >= 0 && open + 1 < args.Length)
+        {
+            OpenPanel(args[open + 1]);
+            return;
+        }
+
+        if (args.Contains("--settings") || (fromOtherLaunch && !args.Contains("--autostart")))
+            ShowSettings();
+    }
+
+    private void OpenPanel(string moduleId)
+    {
+        // Only modules that exist and are switched on: anything else is ignored.
+        var module = _modules?.Get(moduleId);
+        if (module is null) return;
+
+        _flyout?.Close();
+        var flyout = new FlyoutWindow(module);
+        flyout.Closed += (_, _) =>
+        {
+            if (_flyout == flyout) _flyout = null;
+            CrashLog.RunWhenIdle(Dispatcher, MemoryTrim.Trim);
+        };
+        _flyout = flyout;
+        flyout.Show();
+        flyout.Activate();
     }
 
     private void ShowTrayMenu()
@@ -69,11 +121,11 @@ public partial class App : Application
 
     private void ShowSettings()
     {
-        if (_store is null) return;
+        if (_store is null || _modules is null) return;
 
         if (_settings is null)
         {
-            _settings = new SettingsWindow(_store);
+            _settings = new SettingsWindow(_store, _modules);
             _settings.ExitRequested += ExitApp;
             _settings.Closed += (_, _) =>
             {
@@ -89,7 +141,9 @@ public partial class App : Application
 
     private void ExitApp()
     {
+        _flyout?.Close();
         _settings?.Close();
+        _modules?.StopAll();
         _island?.Close();
         _tray?.Dispose();
         _instance?.Dispose();

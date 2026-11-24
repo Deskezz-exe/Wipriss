@@ -20,6 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Wipriss.Core\Wipriss.Core.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Notes\Wipriss.Modules.Notes.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.ClipboardHistory\Wipriss.Modules.ClipboardHistory.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Reminders\Wipriss.Modules.Reminders.csproj" />
   </ItemGroup>
 
   <ItemGroup>

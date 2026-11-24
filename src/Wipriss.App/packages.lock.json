@@ -4,8 +4,25 @@
     "net10.0-windows7.0": {
       "wipriss.core": {
         "type": "Project"
+      },
+      "wipriss.modules.clipboardhistory": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )"
+        }
+      },
+      "wipriss.modules.notes": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )"
+        }
+      },
+      "wipriss.modules.reminders": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )"
+        }
       }
-    },
-    "net10.0-windows7.0/win-x64": {}
+    }
   }
 }

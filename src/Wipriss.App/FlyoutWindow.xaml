@@ -1,0 +1,17 @@
+<Window x:Class="Wipriss.App.FlyoutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True"
+        UseLayoutRounding="True"
+        Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}"
+        FontFamily="{StaticResource UiFont}" FontSize="13">
+    <DockPanel>
+        <DockPanel DockPanel.Dock="Top" Margin="18,12,10,8">
+            <TextBlock x:Name="GlyphText" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
+            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE711;" ToolTip="Закрыть (Esc)"
+                    Click="Close_Click" />
+            <TextBlock x:Name="TitleText" Margin="10,0,0,0" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+        </DockPanel>
+        <ContentControl x:Name="Host" Margin="18,4,18,16" Focusable="False" />
+    </DockPanel>
+</Window>
