@@ -11,14 +11,6 @@
                     <Ellipse x:Name="StateDot" Width="7" Height="7" Margin="1,5,9,0" VerticalAlignment="Top" />
                     <TextBlock x:Name="StateText" Style="{StaticResource Caption}" />
                 </DockPanel>
-
-                <!-- Windows reads the setting when Explorer starts -->
-                <StackPanel x:Name="RestartBox" Margin="16,10,0,0" Visibility="Collapsed">
-                    <Button x:Name="RestartButton" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"
-                            Content="Перезапустить Проводник" Click="Restart_Click" />
-                    <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" Foreground="{StaticResource FaintTextBrush}"
-                               Text="Панель задач пропадёт на секунду, открытые окна папок закроются. Или просто перезагрузите компьютер." />
-                </StackPanel>
             </StackPanel>
         </Border>
 
