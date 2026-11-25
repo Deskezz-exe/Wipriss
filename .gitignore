@@ -34,3 +34,9 @@ logs/
 # Downloaded models and engines (fetched at runtime, verified by SHA-256)
 models/
 *.onnx
+
+# Internal notes for the owner and AI agents: they stay on this PC and are never published
+CLAUDE.md
+PLAN.md
+ПУТЕВОДИТЕЛЬ.md
+docs/

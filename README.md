@@ -9,7 +9,7 @@
 
 <p align="center">One tiny, fast island at the top of your Windows screen with the everyday tools you need.</p>
 
-> **Status: early development.** Nothing to download yet. The plan is in [PLAN.md](PLAN.md) (in Russian).
+> **Status: early development.** Nothing to download yet.
 
 ## Why
 
