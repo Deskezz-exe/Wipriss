@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using Wipriss.Core.Modules;
+using Wipriss.ExplorerMenu;
 
 namespace Wipriss.Modules.Converter;
 
@@ -10,7 +11,10 @@ namespace Wipriss.Modules.Converter;
 /// </summary>
 public sealed class ConverterModule : IModule, IFileTarget
 {
-    private static readonly HashSet<string> Extensions = new(ExplorerMenu.Extensions, StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> Extensions = new(MenuEntry.Convert.Extensions, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>"Изменить через Wipriss" in Explorer's menu.</summary>
+    internal static readonly MenuSwitch Menu = new(MenuEntry.Convert);
 
     private IModuleHost? _host;
     private ConverterSession? _session;
@@ -32,7 +36,7 @@ public sealed class ConverterModule : IModule, IFileTarget
     public void Start(IModuleHost host)
     {
         _host = host;
-        ExplorerMenu.RefreshPath();
+        Menu.RefreshPath();
         // Drawn-on copies left by a crash: nothing of them should stay on disk.
         ConverterSession.DeleteTempFolder();
     }

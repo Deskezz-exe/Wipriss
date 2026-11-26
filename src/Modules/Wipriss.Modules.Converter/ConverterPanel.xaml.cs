@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using Wipriss.Core.Modules;
+using Wipriss.ExplorerMenu;
 
 namespace Wipriss.Modules.Converter;
 
@@ -17,7 +18,7 @@ public partial class ConverterPanel : UserControl
         InitializeComponent();
         _module = module;
         _panel = panel;
-        ShowMenuState(ExplorerMenu.State);
+        ShowMenuState(ConverterModule.Menu.State);
         _ready = true;
         if (module.Session.IsRunning) Status.Text = "Идёт конвертация: откройте окно правки, чтобы посмотреть.";
     }
@@ -31,10 +32,10 @@ public partial class ConverterPanel : UserControl
         MenuHint.Text = state switch
         {
             MenuState.Modern => "Правый щелчок по картинкам → «Изменить через Wipriss».",
-            MenuState.Classic when ExplorerMenu.CanUseModern =>
+            MenuState.Classic when MenuSwitch.CanUseModern =>
                 "Сейчас пункт только в «Показать дополнительные параметры». Выключите и включите снова, чтобы добавить его в основное меню.",
             MenuState.Classic => "Правый щелчок по картинкам → «Изменить через Wipriss».",
-            _ when ExplorerMenu.CanUseModern =>
+            _ when MenuSwitch.CanUseModern =>
                 "Правый щелчок по одной или нескольким картинкам. При включении Windows один раз спросит разрешение администратора.",
             _ => "Правый щелчок по одной или нескольким картинкам.",
         };
@@ -51,7 +52,7 @@ public partial class ConverterPanel : UserControl
         {
             // The UAC prompt takes the focus: the panel must not close meanwhile.
             using (_panel.KeepOpen())
-                result = on ? await ExplorerMenu.TurnOnAsync() : await ExplorerMenu.TurnOffAsync();
+                result = on ? await ConverterModule.Menu.TurnOnAsync() : await ConverterModule.Menu.TurnOffAsync();
         }
         catch (Exception ex)
         {
@@ -59,12 +60,12 @@ public partial class ConverterPanel : UserControl
             result = MenuResult.Failed;
         }
         MenuToggle.IsEnabled = true;
-        ShowMenuState(ExplorerMenu.State);
+        ShowMenuState(ConverterModule.Menu.State);
         Status.Text = result switch
         {
             MenuResult.Modern => "Готово: пункт в меню Проводника.",
             MenuResult.ModernRestarted => "Готово: пункт в меню Проводника. Проводник перезапустился, чтобы его увидеть.",
-            MenuResult.Classic when ExplorerMenu.CanUseModern =>
+            MenuResult.Classic when MenuSwitch.CanUseModern =>
                 "Windows не приняла пункт для основного меню. Он добавлен в «Показать дополнительные параметры».",
             MenuResult.Classic => "Готово: пункт добавлен в меню Проводника.",
             MenuResult.Declined => "Без разрешения администратора пункт будет только в «Показать дополнительные параметры».",

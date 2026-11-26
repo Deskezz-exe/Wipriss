@@ -248,24 +248,41 @@ public sealed class PhotoEditTests : IDisposable
         Assert.Equal(MenuPackage.PackageName, identity.Attribute("Name")!.Value);
         Assert.Equal(MenuPackage.Publisher, identity.Attribute("Publisher")!.Value);
 
-        var clsids = manifest.Descendants().Select(e => e.Attribute("Clsid")?.Value ?? (e.Name.LocalName == "Class" ? e.Attribute("Id")?.Value : null))
-            .Where(v => v is not null).Distinct().ToList();
-        var clsid = Assert.Single(clsids)!;
-        Assert.Equal(MenuPackage.DllFileName, manifest.Descendants().First(e => e.Name.LocalName == "Class").Attribute("Path")!.Value);
+        Assert.Equal(MenuPackage.Version, identity.Attribute("Version")!.Value);
+        Assert.Equal(System.Version.Parse(MenuPackage.Version), MenuEntry.Tables.MinPackage);
+        Assert.Equal(System.Version.Parse("1.1.0.0"), MenuPackage.VersionOf("Wipriss.ExplorerMenu_1.1.0.0_x64__abcdef"));
 
+        // Each verb points at a class the surrogate serves from the DLL, and the C code knows both classes.
+        var classes = manifest.Descendants().Where(e => e.Name.LocalName == "Class").ToList();
+        Assert.Equal(2, classes.Count);
+        Assert.All(classes, e => Assert.Equal(MenuPackage.DllFileName, e.Attribute("Path")!.Value));
         string c = File.ReadAllText(Path.Combine(folder, "WiprissExplorerMenu.c"));
-        Assert.Contains("// {" + clsid + "}", c);
-        var g = Guid.Parse(clsid).ToByteArray();
-        string data1 = BitConverter.ToUInt32(g, 0).ToString("x8");
-        Assert.Matches(new Regex(@"kClsidCommand = \{0x" + data1), c);
+        foreach (var (verb, field) in new[] { ("WiprissEdit", "kClsidCommand"), ("WiprissTable", "kClsidTables") })
+        {
+            var clsid = manifest.Descendants().Where(e => e.Name.LocalName == "Verb" && e.Attribute("Id")!.Value == verb)
+                .Select(e => e.Attribute("Clsid")!.Value).Distinct().Single();
+            Assert.Contains(classes, e => e.Attribute("Id")!.Value == clsid);
+            Assert.Contains("// {" + clsid + "}", c);
+            string data1 = BitConverter.ToUInt32(Guid.Parse(clsid).ToByteArray(), 0).ToString("x8");
+            Assert.Matches(new Regex(field + @" = \{0x" + data1), c);
+        }
         Assert.Contains("L\"" + MenuPackage.ListFilePrefix + "\"", c);
         Assert.Contains("#define TITLE_FILE L\"" + MenuPackage.TitleFileName + "\"", c);
+        Assert.Contains("#define TABLES_TITLE_FILE L\"" + MenuPackage.TablesTitleFileName + "\"", c);
+        Assert.Contains("#define READER_EXE L\"" + MenuPackage.ReaderExeName + "\"", c);
         Assert.Equal(Path.Combine(AppContext.BaseDirectory, MenuPackage.TitleFileName), MenuPackage.TitleFilePath);
 
-        // Every picture type of the classic menu is in the new one too.
-        var types = manifest.Descendants().Where(e => e.Name.LocalName == "ItemType").Select(e => e.Attribute("Type")!.Value).ToHashSet();
-        foreach (var ext in new[] { ".jpg", ".jpeg", ".jfif", ".jpe", ".png", ".webp", ".avif", ".heic", ".heif", ".bmp", ".dib", ".ico", ".tif", ".tiff", ".gif" })
-            Assert.Contains(ext, types);
+        // Pictures: every type of the classic menu is in the new one too.
+        HashSet<string> TypesOf(string verb) => manifest.Descendants().Where(e => e.Name.LocalName == "ItemType"
+                && e.Elements().Any(v => v.Attribute("Id")?.Value == verb))
+            .Select(e => e.Attribute("Type")!.Value).ToHashSet();
+        Assert.True(TypesOf("WiprissEdit").SetEquals(MenuEntry.Convert.Extensions));
+        // Tables: registered for every file like Filee (Windows 11 skips some single types); the DLL checks the
+        // same types as the app.
+        Assert.Equal(["*"], TypesOf("WiprissTable"));
+        var dllTypes = Regex.Match(c, @"kTableTypes\[\] = \{([^}]*)\}").Groups[1].Value
+            .Split(',').Select(s => s.Trim().TrimStart('L').Trim('"')).ToHashSet();
+        Assert.True(dllTypes.SetEquals(MenuEntry.Tables.Extensions));
     }
 
     private static string RepoRoot()

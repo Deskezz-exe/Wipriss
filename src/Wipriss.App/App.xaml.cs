@@ -21,6 +21,7 @@ public partial class App : Application
         new("ports", () => new Wipriss.Modules.Ports.PortsModule()),
         new("capture", () => new Wipriss.Modules.Capture.CaptureModule()),
         new("converter", () => new Wipriss.Modules.Converter.ConverterModule()),
+        new("reader", () => new Wipriss.Modules.Tables.TablesModule()),
     ];
 
     private SingleInstance? _instance;

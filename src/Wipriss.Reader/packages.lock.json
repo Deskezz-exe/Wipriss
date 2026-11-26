@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows7.0": {
+      "ExcelDataReader": {
+        "type": "Direct",
+        "requested": "[3.9.0, )",
+        "resolved": "3.9.0",
+        "contentHash": "3lEkUzG67UWPYj/xlX5Hua3MeQQktnK0B7WGzDjLpdJpBtct7szX0E4WB3Kl6C/8bNnbkyT2eO0FSPV+9CCemw=="
+      },
+      "ExcelNumberFormat": {
+        "type": "Direct",
+        "requested": "[1.2.0, )",
+        "resolved": "1.2.0",
+        "contentHash": "13HfFpG3NBUHevDM5Z8BiMvE6BXJPYE54r9wbKTwa4kBJggSVtDDB73Mz0bGLmID1HgM/3lA1mssMqphdG0+9g=="
+      },
+      "wipriss.core": {
+        "type": "Project"
+      }
+    }
+  }
+}

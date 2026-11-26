@@ -6,6 +6,7 @@
     <Project Path="src/Wipriss.Core/Wipriss.Core.csproj" />
     <Project Path="src/Wipriss.Helper/Wipriss.Helper.csproj" />
     <Project Path="src/Wipriss.ProcessTools/Wipriss.ProcessTools.csproj" />
+    <Project Path="src/Wipriss.Reader/Wipriss.Reader.csproj" />
   </Folder>
   <Folder Name="/src/Modules/">
     <Project Path="src/Modules/Wipriss.Modules.Capture/Wipriss.Modules.Capture.csproj" />
@@ -15,6 +16,7 @@
     <Project Path="src/Modules/Wipriss.Modules.Ports/Wipriss.Modules.Ports.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Network/Wipriss.Modules.Network.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Reminders/Wipriss.Modules.Reminders.csproj" />
+    <Project Path="src/Modules/Wipriss.Modules.Tables/Wipriss.Modules.Tables.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Wipriss.Tests/Wipriss.Tests.csproj" />

@@ -12,6 +12,8 @@
     <ProjectReference Include="..\Wipriss.Modules.Capture\Wipriss.Modules.Capture.csproj" />
     <Compile Include="..\..\Wipriss.Converter\Protocol.cs" Link="Protocol.cs" />
     <Compile Include="..\..\Wipriss.ExplorerMenu\MenuPackage.cs" Link="MenuPackage.cs" />
+    <Compile Include="..\..\Wipriss.ExplorerMenu\MenuSwitch.cs" Link="MenuSwitch.cs" />
+    <Compile Include="..\..\Wipriss.ExplorerMenu\ExplorerRestart.cs" Link="ExplorerRestart.cs" />
   </ItemGroup>
 
 </Project>

@@ -29,6 +29,9 @@
     <ProjectReference Include="..\Modules\Wipriss.Modules.Converter\Wipriss.Modules.Converter.csproj" />
     <!-- The one-shot picture converter ships next to Wipriss.exe (Magick.NET loads only there) -->
     <ProjectReference Include="..\Wipriss.Converter\Wipriss.Converter.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Tables\Wipriss.Modules.Tables.csproj" />
+    <!-- The table viewer ships next to Wipriss.exe (a separate process: tables never load into the island) -->
+    <ProjectReference Include="..\Wipriss.Reader\Wipriss.Reader.csproj" />
     <!-- The one-shot admin helper ships next to Wipriss.exe -->
     <ProjectReference Include="..\Wipriss.Helper\Wipriss.Helper.csproj" />
   </ItemGroup>

@@ -3,6 +3,8 @@
   <PropertyGroup>
     <UseWPF>true</UseWPF>
     <IsPackable>false</IsPackable>
+    <!-- The linked Explorer-menu switch calls Windows' package API with pointers -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +19,7 @@
     <ProjectReference Include="..\..\src\Wipriss.ProcessTools\Wipriss.ProcessTools.csproj" />
     <ProjectReference Include="..\..\src\Wipriss.Capture\Wipriss.Capture.csproj" />
     <ProjectReference Include="..\..\src\Wipriss.Converter\Wipriss.Converter.csproj" />
+    <ProjectReference Include="..\..\src\Wipriss.Reader\Wipriss.Reader.csproj" />
   </ItemGroup>
 
   <!-- Plain parts of the converter window, the Explorer menu and the app, compiled in for testing
@@ -27,6 +30,8 @@
     <Compile Include="..\..\src\Modules\Wipriss.Modules.Converter\ShellNotify.cs" Link="Linked\ShellNotify.cs" />
     <Compile Include="..\..\src\Modules\Wipriss.Modules.Converter\PreviewGrid.cs" Link="Linked\PreviewGrid.cs" />
     <Compile Include="..\..\src\Wipriss.ExplorerMenu\MenuPackage.cs" Link="Linked\MenuPackage.cs" />
+    <Compile Include="..\..\src\Wipriss.ExplorerMenu\MenuSwitch.cs" Link="Linked\MenuSwitch.cs" />
+    <Compile Include="..\..\src\Wipriss.ExplorerMenu\ExplorerRestart.cs" Link="Linked\ExplorerRestart.cs" />
     <Compile Include="..\..\src\Wipriss.App\Shell\ExplorerList.cs" Link="Linked\ExplorerList.cs" />
   </ItemGroup>
 

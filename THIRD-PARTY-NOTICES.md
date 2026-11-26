@@ -1,6 +1,6 @@
 # Third-party notices
 
-Wipriss itself uses only .NET and Windows. The exceptions are the picture converter and the code ported from other projects below.
+Wipriss itself uses only .NET and Windows. The exceptions are the picture converter, the table viewer and the code ported from other projects below.
 
 Each third-party component is listed here with its name, author, license and link. Where a license requires it, the full license text ships with the app.
 
@@ -16,6 +16,23 @@ Each third-party component is listed here with its name, author, license and lin
 `Magick.Native-Q8-x64.dll` also contains the open-source libraries ImageMagick reads and writes pictures with, among them libjpeg-turbo, libpng, zlib, libwebp, libtiff, libheif, libde265, aom, lcms2, openjpeg, libjxl, freetype and others. Most are under MIT, BSD, zlib or Apache-style licenses; some (libheif, libde265, libraw, librsvg, glib, pango and a few more) are under the GNU LGPL. They live in that separate DLL, which Wipriss loads dynamically and does not change, so it can be replaced with another build. The full list with every license text is in `licenses\Magick.NET-notice.txt` next to `Wipriss.exe`, copied unchanged from the Magick.NET package.
 
 Wipriss only converts the picture formats it shows (JPG, PNG, WEBP, AVIF, BMP, ICO, TIFF; HEIC and GIF are read only). Everything else in ImageMagick is switched off by a security policy.
+
+### Table viewer (`Wipriss.Reader.exe`)
+
+| Package | Author | License | Link |
+|---|---|---|---|
+| ExcelDataReader 3.9.0 | ExcelDataReader contributors | MIT | https://github.com/ExcelDataReader/ExcelDataReader |
+| ExcelNumberFormat 1.2.0 | andersnm | MIT | https://github.com/andersnm/ExcelNumberFormat |
+
+ExcelDataReader reads XLSX, XLSM, XLSB and XLS files; ExcelNumberFormat shows numbers and dates in a cell's own number format. Both are used unchanged as NuGet packages. Their license (MIT), with the copyright lines "Copyright (c) 2014-2026 ExcelDataReader contributors" and "Copyright (c) 2017 andersnm":
+
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+OpenDocument (ODS) and CSV files are read by Wipriss's own code. The viewer only shows the values a file has saved: formulas are not recalculated, macros and external links never run.
 
 ### Code ported from other projects
 

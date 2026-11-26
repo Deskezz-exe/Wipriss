@@ -36,7 +36,28 @@ internal static class MenuPackage
     /// </summary>
     public const string TitleFileName = "explorer-menu.txt";
 
-    public static string TitleFilePath => Path.Combine(AppContext.BaseDirectory, TitleFileName);
+    /// <summary>The same for "Открыть в Wipriss" on tables (TABLES_TITLE_FILE in WiprissExplorerMenu.c).</summary>
+    public const string TablesTitleFileName = "explorer-menu-tables.txt";
+
+    /// <summary>All entries' title files: the package stays registered while any of them exists.</summary>
+    public static readonly string[] TitleFileNames = [TitleFileName, TablesTitleFileName];
+
+    /// <summary>The table viewer next to Wipriss.exe (READER_EXE in WiprissExplorerMenu.c).</summary>
+    public const string ReaderExeName = "Wipriss.Reader.exe";
+
+    /// <summary>Identity/@Version in AppxManifest.xml. Version 1.1 added the tables entry, 1.2 registers it for "*" (the DLL checks the type).</summary>
+    public const string Version = "1.2.0.0";
+
+    public static string TitleFilePath => TitlePath(TitleFileName);
+
+    public static string TitlePath(string fileName) => Path.Combine(AppContext.BaseDirectory, fileName);
+
+    /// <summary>The version inside a package full name: Name_Version_Architecture_ResourceId_PublisherId.</summary>
+    public static Version? VersionOf(string fullName)
+    {
+        var parts = fullName.Split('_');
+        return parts.Length >= 2 && System.Version.TryParse(parts[1], out var version) ? version : null;
+    }
 
     public static string PowerShellPath =>
         Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");

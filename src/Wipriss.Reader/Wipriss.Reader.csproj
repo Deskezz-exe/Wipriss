@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Table viewer: XLSX/XLSM/XLSB, XLS, ODS, CSV/TSV. A separate process started by a double click, the Explorer
+    menu or the island; one window per file, the process exits with its last window. Strange files are read
+    here, away from the island. Formulas are never recalculated, macros and external links never run:
+    only the values the file already holds are shown.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Wipriss.Reader</AssemblyName>
+    <RootNamespace>Wipriss.Reader</RootNamespace>
+    <ApplicationIcon>..\Wipriss.App\Assets\wipriss.ico</ApplicationIcon>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+    <PlatformTarget>x64</PlatformTarget>
+    <!-- The name Windows shows in "Open with" -->
+    <AssemblyTitle>Wipriss</AssemblyTitle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ExcelDataReader" Version="3.9.0" />
+    <PackageReference Include="ExcelNumberFormat" Version="1.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wipriss.Core\Wipriss.Core.csproj" />
+    <!-- The island's colors and controls, so the viewer looks like the rest of Wipriss -->
+    <Page Include="..\Wipriss.App\Theme.xaml" Link="Theme.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Wipriss.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,7 +1,7 @@
 using System.IO;
 using System.Diagnostics;
 
-namespace Wipriss.Modules.Converter;
+namespace Wipriss.ExplorerMenu;
 
 /// <summary>
 /// Explorer reads the list of packaged menu commands only when it starts, so a menu package registered while it

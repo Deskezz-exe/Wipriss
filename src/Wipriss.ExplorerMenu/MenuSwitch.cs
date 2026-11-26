@@ -4,9 +4,10 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32;
-using Wipriss.ExplorerMenu;
 
-namespace Wipriss.Modules.Converter;
+namespace Wipriss.ExplorerMenu;
+
+// Compiled into the modules that show a switch for an Explorer-menu entry (converter, tables).
 
 internal enum MenuState
 {
@@ -20,37 +21,52 @@ internal enum MenuState
 internal enum MenuResult { Modern, ModernRestarted, Classic, Off, Declined, Failed }
 
 /// <summary>
-/// "Изменить через Wipriss" in Explorer's right-click menu for pictures, switched on and off only by the owner's
-/// switch in the converter panel.
+/// One entry of Wipriss in Explorer's right-click menu: its title, the file types it shows for, the exe it starts.
+/// <paramref name="MinPackage"/> is the first package version whose manifest and DLL carry this entry.
+/// </summary>
+internal sealed record MenuEntry(string VerbName, string Title, string TitleFileName, string[] Extensions, string ExeName,
+    string Arguments, Version MinPackage)
+{
+    public static readonly MenuEntry Convert = new(
+        "Wipriss.Convert", "Изменить через Wipriss", MenuPackage.TitleFileName,
+        [".jpg", ".jpeg", ".jfif", ".jpe", ".png", ".webp", ".avif", ".heic", ".heif", ".bmp", ".dib", ".ico", ".tif", ".tiff", ".gif"],
+        "Wipriss.exe", "--convert", new Version(1, 0, 0, 0));
+
+    public static readonly MenuEntry Tables = new(
+        "Wipriss.Table", "Открыть в Wipriss", MenuPackage.TablesTitleFileName,
+        [".xlsx", ".xlsm", ".xlsb", ".xls", ".ods", ".csv", ".tsv", ".tab"],
+        MenuPackage.ReaderExeName, "", new Version(1, 2, 0, 0));
+}
+
+/// <summary>
+/// An entry of Wipriss in Explorer's right-click menu, switched on and off only by the owner's switch in a panel.
 /// <list type="bullet">
-/// <item>Windows 11: a sparse package with WiprissExplorerMenu.dll (see src/Wipriss.ExplorerMenu). Registering it needs
-/// admin rights once (Wipriss.Helper.exe, UAC prompt). After that the switch only writes or deletes a small title file,
-/// which the DLL checks on every right-click; switching off also removes the package (no admin needed).</item>
+/// <item>Windows 11: a sparse package with WiprissExplorerMenu.dll (see src/Wipriss.ExplorerMenu), shared by all
+/// entries. Registering it needs admin rights once (Wipriss.Helper.exe, UAC prompt). After that a switch only writes
+/// or deletes its small title file, which the DLL checks on every right-click; the last switch turned off also
+/// removes the package (no admin needed).</item>
 /// <item>Fallback and Windows 10: Wipriss's own keys under
-/// <c>HKCU\Software\Classes\SystemFileAssociations\&lt;ext&gt;\shell\Wipriss.Convert</c>; nothing of Windows or other
+/// <c>HKCU\Software\Classes\SystemFileAssociations\&lt;ext&gt;\shell\&lt;verb&gt;</c>; nothing of Windows or other
 /// programs is changed, and switching off deletes exactly those keys.</item>
 /// </list>
-/// Explorer is never restarted: it reads the menu anew on the next right-click.
+/// Explorer is restarted only when it started before the package was registered (it would not show the entry).
 /// </summary>
-internal static class ExplorerMenu
+internal sealed class MenuSwitch(MenuEntry entry)
 {
-    private const string VerbName = "Wipriss.Convert";
-    public const string Title = "Изменить через Wipriss";
     private const int ErrorCancelled = 1223; // "No" in the UAC prompt
 
-    internal static readonly string[] Extensions =
-    [
-        ".jpg", ".jpeg", ".jfif", ".jpe", ".png", ".webp", ".avif", ".heic", ".heif",
-        ".bmp", ".dib", ".ico", ".tif", ".tiff", ".gif",
-    ];
+    public MenuEntry Entry => entry;
 
     private static string Folder => Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
 
-    private static string KeyPath(string ext) => $@"Software\Classes\SystemFileAssociations\{ext}\shell\{VerbName}";
+    private string KeyPath(string ext) => $@"Software\Classes\SystemFileAssociations\{ext}\shell\{entry.VerbName}";
 
-    private static string? ExePath => Environment.ProcessPath;
+    private string ExePath => Path.Combine(Folder, entry.ExeName);
 
-    private static string CommandFor(string exe) => $"\"{exe}\" --convert \"%1\"";
+    private string CommandFor(string exe) =>
+        entry.Arguments.Length > 0 ? $"\"{exe}\" {entry.Arguments} \"%1\"" : $"\"{exe}\" \"%1\"";
+
+    private string TitlePath => MenuPackage.TitlePath(entry.TitleFileName);
 
     /// <summary>The package files were built next to Wipriss.exe (they are not in a plain debug build).</summary>
     public static bool CanUseModern =>
@@ -58,39 +74,40 @@ internal static class ExplorerMenu
         && File.Exists(Path.Combine(Folder, MenuPackage.PackageFileName))
         && File.Exists(Path.Combine(Folder, MenuPackage.DllFileName));
 
-    public static MenuState State
+    public MenuState State
     {
         get
         {
-            if (File.Exists(MenuPackage.TitleFilePath) && PackageIsHere()) return MenuState.Modern;
+            if (File.Exists(TitlePath) && PackageIsHere(entry.MinPackage)) return MenuState.Modern;
             return ClassicIsOn ? MenuState.Classic : MenuState.Off;
         }
     }
 
-    public static bool IsOn => State != MenuState.Off;
+    public bool IsOn => State != MenuState.Off;
 
-    private static bool ClassicIsOn
+    private bool ClassicIsOn
     {
         get
         {
             try
             {
-                using var key = Registry.CurrentUser.OpenSubKey(KeyPath(".png"));
+                using var key = Registry.CurrentUser.OpenSubKey(KeyPath(entry.Extensions[0]));
                 return key is not null;
             }
             catch (Exception) { return false; }
         }
     }
 
-    /// <summary>Switches the menu on: the new menu if possible, else the classic one. May show a UAC prompt.</summary>
-    public static async Task<MenuResult> TurnOnAsync()
+    /// <summary>Switches the entry on: the new menu if possible, else the classic one. May show a UAC prompt.</summary>
+    public async Task<MenuResult> TurnOnAsync()
     {
         if (!CanUseModern) return SetClassic(true) ? MenuResult.Classic : MenuResult.Failed;
 
-        if (!PackageIsHere())
+        if (!PackageIsHere(entry.MinPackage))
         {
+            // Not registered, registered for another folder, or an older package without this entry.
             bool? added = await RunHelperAsync().ConfigureAwait(false);
-            if (added != true || !PackageIsHere())
+            if (added != true || !PackageIsHere(entry.MinPackage))
             {
                 // The owner said no, or Windows refused: the classic menu still works without admin rights.
                 bool classic = SetClassic(true);
@@ -113,12 +130,13 @@ internal static class ExplorerMenu
         return MenuResult.Modern;
     }
 
-    /// <summary>Hides the item at once, then removes the package and the keys.</summary>
-    public static async Task<MenuResult> TurnOffAsync()
+    /// <summary>Hides the entry at once, then removes its keys, and the package when no other entry uses it.</summary>
+    public async Task<MenuResult> TurnOffAsync()
     {
         bool ok = DeleteTitle();
         ok &= SetClassic(false);
-        if (PackageRegistered())
+        bool othersOn = MenuPackage.TitleFileNames.Any(name => name != entry.TitleFileName && File.Exists(MenuPackage.TitlePath(name)));
+        if (!othersOn && PackageRegistered())
         {
             await RunPowerShellAsync(MenuPackage.RemoveScript()).ConfigureAwait(false);
             ok &= !PackageRegistered();
@@ -131,27 +149,26 @@ internal static class ExplorerMenu
     /// only rewrites when the path really changed. (A package of another folder shows as "off": switching on again
     /// registers it for this folder.)
     /// </summary>
-    public static void RefreshPath()
+    public void RefreshPath()
     {
-        if (ExePath is not { } exe) return;
         try
         {
-            using var command = Registry.CurrentUser.OpenSubKey(KeyPath(".png") + @"\command");
-            if (command?.GetValue(null) is string current && current != CommandFor(exe)) WriteClassic();
+            using var command = Registry.CurrentUser.OpenSubKey(KeyPath(entry.Extensions[0]) + @"\command");
+            if (command?.GetValue(null) is string current && current != CommandFor(ExePath)) WriteClassic();
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException) { }
     }
 
     // ---- Classic menu (registry) ----
 
-    private static bool SetClassic(bool on)
+    private bool SetClassic(bool on)
     {
         try
         {
             if (on) WriteClassic();
             else
             {
-                foreach (var ext in Extensions)
+                foreach (var ext in entry.Extensions)
                     Registry.CurrentUser.DeleteSubKeyTree(KeyPath(ext), throwOnMissingSubKey: false);
             }
             return true;
@@ -162,15 +179,16 @@ internal static class ExplorerMenu
         }
     }
 
-    private static void WriteClassic()
+    private void WriteClassic()
     {
-        if (ExePath is not { } exe || !Path.IsPathFullyQualified(exe)) throw new IOException("unknown exe path");
-        foreach (var ext in Extensions)
+        string exe = ExePath;
+        if (!Path.IsPathFullyQualified(exe) || !File.Exists(exe)) throw new IOException("exe not found");
+        foreach (var ext in entry.Extensions)
         {
             using var verb = Registry.CurrentUser.CreateSubKey(KeyPath(ext));
-            verb.SetValue("MUIVerb", Title);
-            verb.SetValue("Icon", $"\"{exe}\",0");
-            // One launch per selected file (they gather in one window), and the item stays visible for more than 15 files.
+            verb.SetValue("MUIVerb", entry.Title);
+            verb.SetValue("Icon", $"\"{Path.Combine(Folder, "Wipriss.exe")}\",0");
+            // One launch per selected file, and the item stays visible for more than 15 files.
             verb.SetValue("MultiSelectModel", "Player");
             using var command = verb.CreateSubKey("command");
             command.SetValue(null, CommandFor(exe));
@@ -179,35 +197,36 @@ internal static class ExplorerMenu
 
     // ---- New menu (package) ----
 
-    private static bool WriteTitle()
+    private bool WriteTitle()
     {
         try
         {
-            string path = MenuPackage.TitleFilePath;
+            string path = TitlePath;
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, Title + "\r\n", new UTF8Encoding(false));
+            File.WriteAllText(path, entry.Title + "\r\n", new UTF8Encoding(false));
             return true;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException) { return false; }
     }
 
-    private static bool DeleteTitle()
+    private bool DeleteTitle()
     {
         try
         {
-            File.Delete(MenuPackage.TitleFilePath);
+            File.Delete(TitlePath);
             return true;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException) { return false; }
     }
 
-    /// <summary>Registered for this account with this folder as the place of the DLL.</summary>
-    private static bool PackageIsHere()
+    /// <summary>Registered for this account with this folder as the place of the DLL, and new enough.</summary>
+    private static bool PackageIsHere(Version minimum)
     {
         try
         {
             return FindPackage() is { } fullName && ExternalLocation(fullName) is { } location
-                && string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(location)), Folder, StringComparison.OrdinalIgnoreCase);
+                && string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(location)), Folder, StringComparison.OrdinalIgnoreCase)
+                && MenuPackage.VersionOf(fullName) is { } version && version >= minimum;
         }
         catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException) { return false; }
     }

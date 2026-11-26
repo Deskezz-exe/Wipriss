@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The panel only. Tables are shown by Wipriss.Reader.exe, a separate process, so no table code loads here. -->
+  <PropertyGroup>
+    <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Wipriss.Core\Wipriss.Core.csproj" />
+    <Compile Include="..\..\Wipriss.ExplorerMenu\MenuPackage.cs" Link="MenuPackage.cs" />
+    <Compile Include="..\..\Wipriss.ExplorerMenu\MenuSwitch.cs" Link="MenuSwitch.cs" />
+    <Compile Include="..\..\Wipriss.ExplorerMenu\ExplorerRestart.cs" Link="ExplorerRestart.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Wipriss.Tests" />
+  </ItemGroup>
+
+</Project>

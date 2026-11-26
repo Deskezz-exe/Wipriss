@@ -1,16 +1,18 @@
-// "Изменить через Wipriss" in the top-level Windows 11 File Explorer context menu for pictures: a tiny in-process
-// COM server (IClassFactory + IExplorerCommand) that Explorer loads through the Wipriss sparse package. Built with
-// tools/build-explorer-menu.ps1; the package side is src/Wipriss.ExplorerMenu/MenuPackage.cs and AppxManifest.xml.
+// "Изменить через Wipriss" for pictures and "Открыть в Wipriss" for tables in the top-level Windows 11 File
+// Explorer context menu: a tiny in-process COM server (IClassFactory + IExplorerCommand, one class per entry) that
+// Explorer loads through the Wipriss sparse package. Built with tools/build-explorer-menu.ps1; the package side is
+// src/Wipriss.ExplorerMenu/MenuPackage.cs and AppxManifest.xml.
 //
 // Based on FileeExplorerMenu.c from Filee (https://github.com/KnifeLemon/Filee, commit a89b139),
 // Copyright (c) 2026 Myeonggu Kim (KnifeLemon) and Filee contributors, MIT License (see THIRD-PARTY-NOTICES.md).
-// Changes for Wipriss: own CLSID, title and app names; the on/off file lies next to this DLL (a packaged COM
-// server does not see files and registry keys the app writes into AppData or HKCU later); comments shortened.
+// Changes for Wipriss: own CLSIDs, titles and app names; a second entry for tables that starts the table viewer;
+// the on/off files lie next to this DLL (a packaged COM server does not see files and registry keys the app writes
+// into AppData or HKCU later); comments shortened.
 //
 // This code runs inside explorer.exe, so it is deliberately small and defensive:
 //  - no C runtime (linked with -nostdlib): only kernel32/user32/ole32/shell32/shlwapi are used;
 //  - menu construction (GetTitle/GetState) only reads one tiny local file and shell attributes;
-//  - Invoke starts Wipriss.exe next to this DLL and returns immediately (no waiting, no network).
+//  - Invoke starts Wipriss.exe or Wipriss.Reader.exe next to this DLL and returns at once (no waiting, no network).
 
 #define WIN32_LEAN_AND_MEAN
 #define COBJMACROS
@@ -20,8 +22,10 @@
 #include <shlobj.h>
 #include <shlwapi.h>
 
-// {C85DED4B-4368-4428-8528-D4DF9B741C95}; must match MenuPackage.ClassId (C#) and AppxManifest.xml.
+// {C85DED4B-4368-4428-8528-D4DF9B741C95}: pictures; must match AppxManifest.xml.
 static const CLSID kClsidCommand = {0xc85ded4b, 0x4368, 0x4428, {0x85, 0x28, 0xd4, 0xdf, 0x9b, 0x74, 0x1c, 0x95}};
+// {5E0B6C2A-7D41-4F3B-9A86-2C1F04B9D7E3}: tables; must match AppxManifest.xml.
+static const CLSID kClsidTables = {0x5e0b6c2a, 0x7d41, 0x4f3b, {0x9a, 0x86, 0x2c, 0x1f, 0x04, 0xb9, 0xd7, 0xe3}};
 // Local copies of the interface and folder ids, so the DLL does not need libuuid.
 static const IID kIidUnknown = {0x00000000, 0x0000, 0x0000, {0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46}};
 static const IID kIidClassFactory = {0x00000001, 0x0000, 0x0000, {0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46}};
@@ -37,6 +41,15 @@ static const IID kIidExplorerCommand = {0xa08ce4d0, 0xfa25, 0x44ab, {0xb5, 0x7c,
 #define LIST_PREFIX L"Wipriss-convert-"     // MenuPackage.ListFilePrefix in the app
 // CreateProcess accepts at most 32767 characters; longer selections go through a list file.
 #define MAX_COMMAND_LINE 32000
+
+// The tables entry: its own on/off file (MenuPackage.TablesTitleFileName) and the viewer exe (MenuPackage.ReaderExeName).
+#define TABLES_DEFAULT_TITLE L"Открыть в Wipriss"
+#define TABLES_TITLE_FILE L"explorer-menu-tables.txt"
+#define READER_EXE L"Wipriss.Reader.exe"
+// One window per table: a selection of hundreds of files opens only the first ones.
+#define MAX_TABLES 12
+
+enum { KIND_PICTURES = 0, KIND_TABLES = 1 };
 
 static HMODULE g_module;
 static volatile LONG g_locks; // live objects + class factory references + LockServer calls
@@ -117,11 +130,11 @@ static BOOL PathNextToModule(const WCHAR *name, WCHAR *buffer, DWORD size)
     return TRUE;
 }
 
-/// Reads the localized title the app writes into its data folder. Returns FALSE when missing or unusable.
-static BOOL ReadTitle(WCHAR *title, int size)
+/// Reads the title the app writes next to this DLL for an entry. Returns FALSE when missing or unusable.
+static BOOL ReadTitle(int kind, WCHAR *title, int size)
 {
     WCHAR path[1024];
-    if (!PathNextToModule(TITLE_FILE, path, ARRAYSIZE(path)))
+    if (!PathNextToModule(kind == KIND_TABLES ? TABLES_TITLE_FILE : TITLE_FILE, path, ARRAYSIZE(path)))
         return FALSE;
     HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -214,7 +227,13 @@ typedef struct Command
 {
     IExplorerCommand iface;
     volatile LONG refs;
+    int kind; // KIND_PICTURES or KIND_TABLES
 } Command;
+
+static int KindOf(IExplorerCommand *self)
+{
+    return ((Command *)self)->kind;
+}
 
 static HRESULT STDMETHODCALLTYPE Command_QueryInterface(IExplorerCommand *self, REFIID riid, void **result)
 {
@@ -248,14 +267,14 @@ static ULONG STDMETHODCALLTYPE Command_Release(IExplorerCommand *self)
 
 static HRESULT STDMETHODCALLTYPE Command_GetTitle(IExplorerCommand *self, IShellItemArray *items, LPWSTR *name)
 {
-    (void)self;
     (void)items;
     if (!name)
         return E_POINTER;
     *name = NULL;
+    int kind = KindOf(self);
     WCHAR title[128];
-    if (!ReadTitle(title, ARRAYSIZE(title)))
-        lstrcpyW(title, DEFAULT_TITLE);
+    if (!ReadTitle(kind, title, ARRAYSIZE(title)))
+        lstrcpyW(title, kind == KIND_TABLES ? TABLES_DEFAULT_TITLE : DEFAULT_TITLE);
     return SHStrDupW(title, name);
 }
 
@@ -283,11 +302,42 @@ static HRESULT STDMETHODCALLTYPE Command_GetToolTip(IExplorerCommand *self, IShe
 
 static HRESULT STDMETHODCALLTYPE Command_GetCanonicalName(IExplorerCommand *self, GUID *name)
 {
-    (void)self;
     if (!name)
         return E_POINTER;
-    *name = kClsidCommand;
+    *name = KindOf(self) == KIND_TABLES ? kClsidTables : kClsidCommand;
     return S_OK;
+}
+
+/// The tables entry is registered for every file ("*", like Filee does: Windows 11 does not show packaged entries
+/// registered for some single types, e.g. .xlsx without an Excel installed), so it checks the types itself.
+static const WCHAR *const kTableTypes[] = {L".xlsx", L".xlsm", L".xlsb", L".xls", L".ods", L".csv", L".tsv", L".tab"};
+// A huge selection is not checked file by file while the menu opens.
+#define MAX_CHECKED_ITEMS 512
+
+static BOOL AllAreTables(IShellItemArray *items)
+{
+    DWORD count = 0;
+    if (FAILED(IShellItemArray_GetCount(items, &count)) || count == 0 || count > MAX_CHECKED_ITEMS)
+        return FALSE;
+    for (DWORD i = 0; i < count; i++)
+    {
+        IShellItem *item = NULL;
+        if (FAILED(IShellItemArray_GetItemAt(items, i, &item)))
+            return FALSE;
+        LPWSTR name = NULL;
+        BOOL table = FALSE;
+        if (SUCCEEDED(IShellItem_GetDisplayName(item, SIGDN_PARENTRELATIVEPARSING, &name)) && name)
+        {
+            const WCHAR *ext = PathFindExtensionW(name);
+            for (int t = 0; t < (int)ARRAYSIZE(kTableTypes) && !table; t++)
+                table = lstrcmpiW(ext, kTableTypes[t]) == 0;
+            CoTaskMemFree(name);
+        }
+        IShellItem_Release(item);
+        if (!table)
+            return FALSE;
+    }
+    return TRUE;
 }
 
 /// Shown only while the app's setting is on (the title file exists) and every selected item is a file on disk:
@@ -295,28 +345,74 @@ static HRESULT STDMETHODCALLTYPE Command_GetCanonicalName(IExplorerCommand *self
 static HRESULT STDMETHODCALLTYPE Command_GetState(IExplorerCommand *self, IShellItemArray *items, BOOL okToBeSlow,
                                                   EXPCMDSTATE *state)
 {
-    (void)self;
     (void)okToBeSlow;
     if (!state)
         return E_POINTER;
     *state = ECS_HIDDEN;
     WCHAR title[128];
-    if (!ReadTitle(title, ARRAYSIZE(title)))
+    if (!ReadTitle(KindOf(self), title, ARRAYSIZE(title)))
         return S_OK;
     const SFGAOF wanted = SFGAO_FILESYSTEM | SFGAO_STREAM;
     SFGAOF attributes = 0;
     if (items && SUCCEEDED(IShellItemArray_GetAttributes(items, SIATTRIBFLAGS_AND, wanted, &attributes))
-        && (attributes & wanted) == wanted)
+        && (attributes & wanted) == wanted && (KindOf(self) != KIND_TABLES || AllAreTables(items)))
         *state = ECS_ENABLED;
     return S_OK;
 }
 
+/// Tables: Wipriss.Reader.exe "<file>" ... for up to MAX_TABLES files (one window each).
+static HRESULT OpenTables(IShellItemArray *items)
+{
+    WCHAR exe[1024];
+    if (!PathNextToModule(READER_EXE, exe, ARRAYSIZE(exe)))
+        return E_FAIL;
+    DWORD count = 0;
+    HRESULT hr = IShellItemArray_GetCount(items, &count);
+    if (FAILED(hr))
+        return hr;
+
+    Text args = {0};
+    TextAppend(&args, L"\"");
+    TextAppend(&args, exe);
+    TextAppend(&args, L"\"");
+    DWORD added = 0;
+    for (DWORD i = 0; i < count && added < MAX_TABLES; i++)
+    {
+        IShellItem *item = NULL;
+        if (FAILED(IShellItemArray_GetItemAt(items, i, &item)))
+            continue;
+        LPWSTR path = NULL;
+        if (SUCCEEDED(IShellItem_GetDisplayName(item, SIGDN_FILESYSPATH, &path)) && path)
+        {
+            if (args.length + (SIZE_T)lstrlenW(path) + 4 < MAX_COMMAND_LINE)
+            {
+                TextAppend(&args, L" \"");
+                TextAppend(&args, path);
+                TextAppend(&args, L"\"");
+                added++;
+            }
+            CoTaskMemFree(path);
+        }
+        IShellItem_Release(item);
+    }
+
+    if (args.failed)
+        hr = E_OUTOFMEMORY;
+    else if (added == 0)
+        hr = S_FALSE;
+    else
+        hr = StartWipriss(exe, args.data);
+    TextFree(&args);
+    return hr;
+}
+
 static HRESULT STDMETHODCALLTYPE Command_Invoke(IExplorerCommand *self, IShellItemArray *items, IBindCtx *context)
 {
-    (void)self;
     (void)context;
     if (!items)
         return E_INVALIDARG;
+    if (KindOf(self) == KIND_TABLES)
+        return OpenTables(items);
     WCHAR exe[1024];
     if (!PathNextToModule(APP_EXE, exe, ARRAYSIZE(exe)))
         return E_FAIL;
@@ -412,7 +508,13 @@ static IExplorerCommandVtbl g_commandVtbl = {
     Command_EnumSubCommands,
 };
 
-// ---- IClassFactory (a single static instance) ------------------------------------------------------------------
+// ---- IClassFactory (one static instance per entry) -------------------------------------------------------------
+
+typedef struct Factory
+{
+    IClassFactory iface;
+    int kind;
+} Factory;
 
 static HRESULT STDMETHODCALLTYPE Factory_QueryInterface(IClassFactory *self, REFIID riid, void **result)
 {
@@ -442,7 +544,6 @@ static ULONG STDMETHODCALLTYPE Factory_Release(IClassFactory *self)
 
 static HRESULT STDMETHODCALLTYPE Factory_CreateInstance(IClassFactory *self, IUnknown *outer, REFIID riid, void **result)
 {
-    (void)self;
     if (!result)
         return E_POINTER;
     *result = NULL;
@@ -453,6 +554,7 @@ static HRESULT STDMETHODCALLTYPE Factory_CreateInstance(IClassFactory *self, IUn
         return E_OUTOFMEMORY;
     command->iface.lpVtbl = &g_commandVtbl;
     command->refs = 1;
+    command->kind = ((Factory *)self)->kind;
     InterlockedIncrement(&g_locks);
     HRESULT hr = Command_QueryInterface(&command->iface, riid, result);
     Command_Release(&command->iface); // the caller's reference (if any) keeps it alive
@@ -476,7 +578,8 @@ static IClassFactoryVtbl g_factoryVtbl = {
     Factory_CreateInstance,
     Factory_LockServer,
 };
-static IClassFactory g_factory = {&g_factoryVtbl};
+static Factory g_factory = {{&g_factoryVtbl}, KIND_PICTURES};
+static Factory g_tablesFactory = {{&g_factoryVtbl}, KIND_TABLES};
 
 // ---- DLL exports -----------------------------------------------------------------------------------------------
 
@@ -485,9 +588,11 @@ HRESULT __stdcall DllGetClassObject(REFCLSID clsid, REFIID riid, void **result)
     if (!result)
         return E_POINTER;
     *result = NULL;
-    if (!SameGuid(clsid, &kClsidCommand))
-        return CLASS_E_CLASSNOTAVAILABLE;
-    return Factory_QueryInterface(&g_factory, riid, result);
+    if (SameGuid(clsid, &kClsidCommand))
+        return Factory_QueryInterface(&g_factory.iface, riid, result);
+    if (SameGuid(clsid, &kClsidTables))
+        return Factory_QueryInterface(&g_tablesFactory.iface, riid, result);
+    return CLASS_E_CLASSNOTAVAILABLE;
 }
 
 HRESULT __stdcall DllCanUnloadNow(void)
