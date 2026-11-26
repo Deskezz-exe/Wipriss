@@ -49,7 +49,8 @@
       "wipriss.modules.converter": {
         "type": "Project",
         "dependencies": {
-          "Wipriss.Core": "[0.1.0, )"
+          "Wipriss.Core": "[0.1.0, )",
+          "Wipriss.Modules.Capture": "[0.1.0, )"
         }
       },
       "wipriss.modules.network": {

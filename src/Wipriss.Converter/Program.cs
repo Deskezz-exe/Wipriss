@@ -25,7 +25,9 @@ internal static class Program
         {
             return 2;
         }
-        if (request is null || request.Files.Count is 0 or > MaxFiles) return 2;
+        if (request is null) return 2;
+        var jobs = request.AllJobs();
+        if (jobs.Count is 0 or > MaxFiles) return 2;
 
         using var stdout = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = true };
         var gate = new Lock();
@@ -41,10 +43,10 @@ internal static class Program
             }
         }
 
-        for (int i = 0; i < request.Files.Count; i++)
+        for (int i = 0; i < jobs.Count; i++)
         {
             int index = i;
-            var reply = ImageConverter.ConvertFile(index, request.Files[index], request,
+            var reply = ImageConverter.ConvertFile(index, jobs[index], request,
                 percent => Send(new ConvertReply { Index = index, Progress = percent }));
             if (!Send(reply)) return 3; // Wipriss is gone: nobody is waiting for the rest
         }

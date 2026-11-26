@@ -3,11 +3,15 @@
   <!-- The panel only. Pictures are converted by Wipriss.Converter.exe, so Magick.NET never loads here. -->
   <PropertyGroup>
     <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Wipriss.Core\Wipriss.Core.csproj" />
+    <!-- The screenshot editor, for drawing on a photo -->
+    <ProjectReference Include="..\Wipriss.Modules.Capture\Wipriss.Modules.Capture.csproj" />
     <Compile Include="..\..\Wipriss.Converter\Protocol.cs" Link="Protocol.cs" />
+    <Compile Include="..\..\Wipriss.ExplorerMenu\MenuPackage.cs" Link="MenuPackage.cs" />
   </ItemGroup>
 
 </Project>

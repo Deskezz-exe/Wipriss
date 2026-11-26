@@ -1,6 +1,6 @@
 # Third-party notices
 
-Wipriss itself uses only .NET and Windows. The one exception is the picture converter below.
+Wipriss itself uses only .NET and Windows. The exceptions are the picture converter and the code ported from other projects below.
 
 Each third-party component is listed here with its name, author, license and link. Where a license requires it, the full license text ships with the app.
 
@@ -16,6 +16,38 @@ Each third-party component is listed here with its name, author, license and lin
 `Magick.Native-Q8-x64.dll` also contains the open-source libraries ImageMagick reads and writes pictures with, among them libjpeg-turbo, libpng, zlib, libwebp, libtiff, libheif, libde265, aom, lcms2, openjpeg, libjxl, freetype and others. Most are under MIT, BSD, zlib or Apache-style licenses; some (libheif, libde265, libraw, librsvg, glib, pango and a few more) are under the GNU LGPL. They live in that separate DLL, which Wipriss loads dynamically and does not change, so it can be replaced with another build. The full list with every license text is in `licenses\Magick.NET-notice.txt` next to `Wipriss.exe`, copied unchanged from the Magick.NET package.
 
 Wipriss only converts the picture formats it shows (JPG, PNG, WEBP, AVIF, BMP, ICO, TIFF; HEIC and GIF are read only). Everything else in ImageMagick is switched off by a security policy.
+
+### Code ported from other projects
+
+**Filee** by Myeonggu Kim (KnifeLemon), MIT — https://github.com/KnifeLemon/Filee
+`src/Wipriss.Converter/BackgroundRemover.cs` ("Убрать однотонный фон") is Filee's `BackgroundRemover.cs`, only the namespace changed. Its header names the source and the commit.
+The Windows 11 Explorer menu is based on Filee's Explorer-menu extension (commit a89b139): `src/Wipriss.ExplorerMenu/WiprissExplorerMenu.c`, `.def` and `.rc` (from `FileeExplorerMenu.*`: own CLSID, title, app names and title-file folder), `AppxManifest.xml` (from `ExplorerMenuPackage.CreateManifest`: a static file, picture types only), `MenuPackage.cs` and the package lookup in `src/Modules/Wipriss.Modules.Converter/ExplorerMenu.cs` (from `ExplorerMenuRegistration.cs`), `tools/make-explorer-package.cs` and `tools/build-explorer-menu.ps1` (from `build/`). Each file's header lists the changes.
+
+**Zig** 0.16.0 (build tool only, not shipped), MIT — https://ziglang.org. `tools/build-explorer-menu.ps1` downloads it (SHA-256 checked) to compile the Explorer-menu DLL; the DLL links no Zig or C runtime code.
+
+```
+MIT License
+
+Copyright (c) 2026 Myeonggu Kim (KnifeLemon) and Filee contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ## Development only (not shipped with the app)
 

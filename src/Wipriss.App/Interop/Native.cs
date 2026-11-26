@@ -72,6 +72,11 @@ internal static class Native
         public IntPtr hBalloonIcon;
     }
 
+    public const int AsfwAny = -1;
+
+    [DllImport("user32.dll")]
+    public static extern bool AllowSetForegroundWindow(int processId);
+
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
     public static extern nint GetWindowLongPtr(IntPtr hWnd, int index);
 

@@ -17,6 +17,9 @@ public static class ImageConverter
 {
     public const long MaxInputBytes = 300L * 1024 * 1024;
 
+    /// <summary>Filee's default: removes paper and its shadows, keeps light-grey fills of a logo.</summary>
+    private const int BackgroundTolerance = 25;
+
     /// <summary>The icon sizes put into an .ico, from big to small.</summary>
     private static readonly int[] IconSizes = [256, 128, 64, 48, 32, 24, 16];
 
@@ -39,14 +42,23 @@ public static class ImageConverter
 
     /// <summary>Converts one file and saves the result. Errors come back in the reply, never thrown.</summary>
     /// <param name="progress">Gets 0–99 while the file is being worked on.</param>
-    public static ConvertReply ConvertFile(int index, string path, ConvertRequest request, Action<int>? progress = null)
+    public static ConvertReply ConvertFile(int index, string path, ConvertRequest request, Action<int>? progress = null) =>
+        ConvertFile(index, new ConvertJob { Path = path }, request, progress);
+
+    /// <summary>One file of a request: its own settings if it has them, else the request's.</summary>
+    public static ConvertReply ConvertFile(int index, ConvertJob job, ConvertRequest request, Action<int>? progress = null)
     {
         var reply = new ConvertReply { Index = index };
         try
         {
-            var input = ReadInput(path);
-            var result = Encode(input, request, progress);
-            reply.Output = Save(path, result.Bytes, request);
+            var options = job.Options ?? request;
+            string nameFrom = string.IsNullOrEmpty(job.NameFrom) ? job.Path : job.NameFrom;
+            if (!Path.IsPathFullyQualified(nameFrom)) throw new ConvertException("непонятный путь к файлу");
+            var input = ReadInput(job.Path);
+            var result = Encode(input, options, progress);
+            reply.Output = request.OutputFolder is { } only && Path.IsPathFullyQualified(only)
+                ? SaveInto(only, nameFrom, result.Bytes, options)
+                : Save(nameFrom, result.Bytes, options, request.FallbackFolder);
             reply.Ok = true;
             reply.Bytes = result.Bytes.LongLength;
             reply.Width = result.Width;
@@ -77,11 +89,13 @@ public static class ImageConverter
     }
 
     /// <summary>The whole conversion in memory: read, turn upright, resize, fit the weight limit.</summary>
-    public static Encoded Encode(byte[] input, ConvertRequest request, Action<int>? progress = null)
+    public static Encoded Encode(byte[] input, ConvertOptions request, Action<int>? progress = null)
     {
         using var meter = new ProgressMeter(progress);
         SafeMagick.Initialize();
         var format = SafeMagick.Sniff(input) ?? throw new ConvertException("это не картинка или формат не поддерживается");
+        if (request.RemoveBackground && !KeepsTransparency(request.Format))
+            throw new ConvertException("JPG и BMP не умеют прозрачность: выберите PNG, WEBP, AVIF, ICO или TIFF");
 
         var settings = new MagickReadSettings { Format = format };
         var ping = new MagickImageInfo(input, settings);
@@ -93,14 +107,21 @@ public static class ImageConverter
         image.Read(input, settings);
         meter.Step(15, 25);
         image.AutoOrient();
-        Prepare(image, request.Format);
+        StripPrivateData(image);
         Resize(image, request);
         if (request.Format == TargetFormat.Ico) FitIcon(image);
+        if (request.RemoveBackground)
+        {
+            // After resizing: fewer pixels to look at. Before encoding, which flattens alpha for JPG and BMP.
+            meter.Step(25, 45);
+            PhotoCutout.RemovePlainBackground(image, BackgroundTolerance);
+        }
+        FlattenIfNeeded(image, request.Format);
 
         long? limit = request.MaxBytes is > 0 ? request.MaxBytes : null;
         // One encode gets the rest of the bar; with a weight limit more encodes may follow.
-        if (limit is null) meter.Step(25, 99);
-        else meter.Step(25, 45);
+        if (limit is null) meter.Step(request.RemoveBackground ? 45 : 25, 99);
+        else meter.NextEncode();
         int quality = DefaultQuality;
         byte[] bytes = Write(image, request.Format, quality);
         if (limit is null || bytes.LongLength <= limit)
@@ -180,13 +201,18 @@ public static class ImageConverter
     private static Encoded Done(byte[] bytes, MagickImage image, TargetFormat format, int quality, bool shrunk, bool over) =>
         new(bytes, (int)image.Width, (int)image.Height, IsLossy(format) ? quality : null, shrunk, over);
 
-    /// <summary>Drops what the owner wouldn't want to share and what the target format can't hold.</summary>
-    private static void Prepare(MagickImage image, TargetFormat format)
-    {
-        // Privacy: camera data and the place a photo was taken stay behind. The colour profile stays.
-        foreach (var name in new[] { "exif", "xmp", "iptc", "8bim" }) image.RemoveProfile(name);
+    public static bool KeepsTransparency(TargetFormat format) => format is not (TargetFormat.Jpg or TargetFormat.Bmp);
 
-        if (format is TargetFormat.Jpg or TargetFormat.Bmp && image.HasAlpha)
+    /// <summary>Privacy: camera data and the place a photo was taken stay behind. The colour profile stays.</summary>
+    private static void StripPrivateData(MagickImage image)
+    {
+        foreach (var name in new[] { "exif", "xmp", "iptc", "8bim" }) image.RemoveProfile(name);
+    }
+
+    /// <summary>JPG and BMP can't hold transparency: transparent parts become white.</summary>
+    private static void FlattenIfNeeded(MagickImage image, TargetFormat format)
+    {
+        if (!KeepsTransparency(format) && image.HasAlpha)
         {
             image.BackgroundColor = MagickColors.White;
             image.Alpha(AlphaAction.Remove);
@@ -194,7 +220,7 @@ public static class ImageConverter
         }
     }
 
-    private static void Resize(MagickImage image, ConvertRequest request)
+    private static void Resize(MagickImage image, ConvertOptions request)
     {
         int width = (int)image.Width, height = (int)image.Height;
         (int w, int h) = request.Resize switch
@@ -274,9 +300,12 @@ public static class ImageConverter
     /// Saves next to the original as "name.ext", or "name (2).ext" and so on: an existing file,
     /// the original included, is never replaced. If that folder is read-only, uses the fallback.
     /// </summary>
-    public static string Save(string source, byte[] bytes, ConvertRequest request)
+    public static string Save(string source, byte[] bytes, ConvertRequest request) =>
+        Save(source, bytes, request, request.FallbackFolder);
+
+    public static string Save(string source, byte[] bytes, ConvertOptions request, string? fallbackFolder)
     {
-        string name = Path.GetFileNameWithoutExtension(source);
+        string name = Path.GetFileNameWithoutExtension(source) + (request.RemoveBackground ? " без фона" : "");
         string ext = Extension(request.Format);
         string? folder = Path.GetDirectoryName(source);
         try
@@ -284,12 +313,18 @@ public static class ImageConverter
             if (folder is null) throw new UnauthorizedAccessException();
             return WriteNew(folder, name, ext, bytes);
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException && request.FallbackFolder is { } fallback
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException && fallbackFolder is { } fallback
                                    && Path.IsPathFullyQualified(fallback))
         {
             Directory.CreateDirectory(fallback);
             return WriteNew(fallback, name, ext, bytes);
         }
+    }
+
+    private static string SaveInto(string folder, string source, byte[] bytes, ConvertOptions options)
+    {
+        Directory.CreateDirectory(folder);
+        return WriteNew(folder, Path.GetFileNameWithoutExtension(source), Extension(options.Format), bytes);
     }
 
     private static string WriteNew(string folder, string name, string ext, byte[] bytes)

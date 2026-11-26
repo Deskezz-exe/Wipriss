@@ -19,6 +19,17 @@
     <ProjectReference Include="..\..\src\Wipriss.Converter\Wipriss.Converter.csproj" />
   </ItemGroup>
 
+  <!-- Plain parts of the converter window, the Explorer menu and the app, compiled in for testing
+       (the module itself can't be referenced: it carries its own copy of the converter protocol). -->
+  <ItemGroup>
+    <Compile Include="..\..\src\Modules\Wipriss.Modules.Converter\ConverterSession.cs" Link="Linked\ConverterSession.cs" />
+    <Compile Include="..\..\src\Modules\Wipriss.Modules.Converter\OriginalReplacer.cs" Link="Linked\OriginalReplacer.cs" />
+    <Compile Include="..\..\src\Modules\Wipriss.Modules.Converter\ShellNotify.cs" Link="Linked\ShellNotify.cs" />
+    <Compile Include="..\..\src\Modules\Wipriss.Modules.Converter\PreviewGrid.cs" Link="Linked\PreviewGrid.cs" />
+    <Compile Include="..\..\src\Wipriss.ExplorerMenu\MenuPackage.cs" Link="Linked\MenuPackage.cs" />
+    <Compile Include="..\..\src\Wipriss.App\Shell\ExplorerList.cs" Link="Linked\ExplorerList.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>

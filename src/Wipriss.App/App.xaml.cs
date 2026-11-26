@@ -38,6 +38,9 @@ public partial class App : Application
         _instance = SingleInstance.TryAcquire();
         if (_instance is null)
         {
+            // Started from Explorer's menu, this launch may bring a window forward; pass that right on to
+            // the running Wipriss, which shows the window.
+            Native.AllowSetForegroundWindow(Native.AsfwAny);
             SingleInstance.SendToRunningInstance(e.Args);
             Shutdown();
             return;
@@ -75,6 +78,24 @@ public partial class App : Application
     /// </summary>
     private void HandleCommand(string[] args, bool fromOtherLaunch)
     {
+        // From the Explorer menu: --convert "<file>" ... (the new menu passes the whole selection at once,
+        // the classic one starts one launch per file), or --convert-list "<list>" for a selection too long
+        // for a command line.
+        int convert = Array.IndexOf(args, "--convert");
+        int list = Array.IndexOf(args, "--convert-list");
+        if (convert >= 0 || list >= 0)
+        {
+            var files = convert >= 0
+                ? args.Skip(convert + 1).Where(System.IO.Path.IsPathFullyQualified).ToList()
+                : list + 1 < args.Length ? ExplorerList.Read(args[list + 1]) : [];
+            if (files.Count > 0 && _modules?.Get("converter") is IFileTarget converter)
+            {
+                try { converter.OpenFiles(files); }
+                catch (Exception ex) { CrashLog.Write(ex); }
+            }
+            return;
+        }
+
         int open = Array.IndexOf(args, "--open");
         if (open >= 0 && open + 1 < args.Length)
         {
@@ -91,6 +112,13 @@ public partial class App : Application
         // Only modules that exist and are switched on: anything else is ignored.
         var module = _modules?.Get(moduleId);
         if (module is null) return;
+
+        // Already open: keep it (new files show up in its list) instead of rebuilding it for every file.
+        if (_flyout is { } open && open.ModuleId == moduleId && open.IsVisible)
+        {
+            open.Activate();
+            return;
+        }
 
         _flyout?.Close();
         var flyout = new FlyoutWindow(module);

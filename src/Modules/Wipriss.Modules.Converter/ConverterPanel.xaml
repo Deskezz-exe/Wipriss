@@ -2,142 +2,29 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              AllowDrop="True" DragOver="Panel_DragOver" Drop="Panel_Drop">
-    <DockPanel>
-        <!-- Where pictures come from -->
-        <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Padding="14,11" Margin="0,0,0,10">
-            <DockPanel>
-                <Button DockPanel.Dock="Right" Style="{StaticResource PlainButton}" Content="Выбрать файлы…"
-                        VerticalAlignment="Center" Click="Pick_Click" />
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Перетащите картинки на островок или сюда" />
-                    <TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0"
-                               Text="JPG, PNG, WEBP, AVIF, HEIC, BMP, ICO, TIFF, GIF" />
-                </StackPanel>
-            </DockPanel>
-        </Border>
-
-        <!-- Options and the button -->
-        <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
-            <TextBlock Style="{StaticResource SectionTitle}" Text="Формат" Margin="2,0,0,6" />
-            <Border Style="{StaticResource SegmentTrack}">
-                <StackPanel x:Name="FormatGroup" Orientation="Horizontal">
-                    <RadioButton Style="{StaticResource Segment}" GroupName="Format" Content="JPG" Tag="Jpg" Checked="Format_Checked" />
-                    <RadioButton Style="{StaticResource Segment}" GroupName="Format" Content="PNG" Tag="Png" Checked="Format_Checked" />
-                    <RadioButton Style="{StaticResource Segment}" GroupName="Format" Content="WEBP" Tag="WebP" Checked="Format_Checked" />
-                    <RadioButton Style="{StaticResource Segment}" GroupName="Format" Content="AVIF" Tag="Avif" Checked="Format_Checked" />
-                    <RadioButton Style="{StaticResource Segment}" GroupName="Format" Content="BMP" Tag="Bmp" Checked="Format_Checked" />
-                    <RadioButton Style="{StaticResource Segment}" GroupName="Format" Content="ICO" Tag="Ico" Checked="Format_Checked" />
-                    <RadioButton Style="{StaticResource Segment}" GroupName="Format" Content="TIFF" Tag="Tiff" Checked="Format_Checked" />
-                </StackPanel>
-            </Border>
-
-            <TextBlock Style="{StaticResource SectionTitle}" Text="Размер" Margin="2,14,0,6" />
-            <StackPanel Orientation="Horizontal">
-                <Border Style="{StaticResource SegmentTrack}">
-                    <StackPanel x:Name="ResizeGroup" Orientation="Horizontal">
-                        <RadioButton Style="{StaticResource Segment}" GroupName="Resize" Content="Как есть" Tag="None" Checked="Resize_Checked" />
-                        <RadioButton Style="{StaticResource Segment}" GroupName="Resize" Content="Пиксели" Tag="Pixels" Checked="Resize_Checked" />
-                        <RadioButton Style="{StaticResource Segment}" GroupName="Resize" Content="Проценты" Tag="Percent" Checked="Resize_Checked" />
-                    </StackPanel>
-                </Border>
-                <StackPanel x:Name="PixelsBox" Orientation="Horizontal" Margin="12,0,0,0" Visibility="Collapsed">
-                    <TextBox x:Name="WidthBox" Style="{StaticResource InputBox}" Width="66" Tag="ширина"
-                             TextChanged="Number_TextChanged" PreviewTextInput="Digits_PreviewTextInput" />
-                    <TextBlock Text="×" Margin="6,0" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" />
-                    <TextBox x:Name="HeightBox" Style="{StaticResource InputBox}" Width="66" Tag="высота"
-                             TextChanged="Number_TextChanged" PreviewTextInput="Digits_PreviewTextInput" />
-                </StackPanel>
-                <StackPanel x:Name="PercentBox" Orientation="Horizontal" Margin="12,0,0,0" Visibility="Collapsed">
-                    <TextBox x:Name="PercentInput" Style="{StaticResource InputBox}" Width="56"
-                             TextChanged="Number_TextChanged" PreviewTextInput="Digits_PreviewTextInput" />
-                    <TextBlock Text="%" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" />
+    <StackPanel>
+        <Border Style="{StaticResource Card}" Padding="14,12">
+            <StackPanel>
+                <TextBlock Text="Перетащите картинки на островок или сюда" />
+                <TextBlock Style="{StaticResource Caption}" Margin="0,3,0,10" TextWrapping="Wrap"
+                           Text="Откроется окно правки: формат, сжатие, размер, фон, рисование. JPG, PNG, WEBP, AVIF, HEIC, BMP, ICO, TIFF, GIF." />
+                <StackPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource PrimaryButton}" Content="Выбрать картинки…" Click="Pick_Click" />
+                    <Button x:Name="OpenButton" Style="{StaticResource PlainButton}" Content="Открыть окно правки" Margin="8,0,0,0"
+                            Click="Open_Click" />
                 </StackPanel>
             </StackPanel>
-            <TextBlock x:Name="ResizeHint" Style="{StaticResource Caption}" Margin="2,5,0,0" Visibility="Collapsed"
-                       Text="Картинка впишется в этот размер, пропорции сохранятся. Одну сторону можно не заполнять." />
+        </Border>
 
-            <DockPanel Margin="0,10,0,0">
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBox x:Name="LimitBox" Style="{StaticResource InputBox}" Width="56"
-                             TextChanged="Number_TextChanged" PreviewTextInput="Decimal_PreviewTextInput" />
-                    <TextBlock Text="МБ" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" />
-                </StackPanel>
-                <CheckBox x:Name="LimitToggle" Style="{StaticResource ToggleSwitch}" Margin="0,0,12,0"
-                          Content="Сжать, чтобы файл весил не больше" Checked="Limit_Changed" Unchecked="Limit_Changed" />
-            </DockPanel>
+        <Border Style="{StaticResource Card}" Padding="14,12" Margin="0,10,0,0">
+            <StackPanel>
+                <CheckBox x:Name="MenuToggle" Style="{StaticResource ToggleSwitch}"
+                          Content="«Изменить через Wipriss» в меню Проводника"
+                          Checked="Menu_Changed" Unchecked="Menu_Changed" />
+                <TextBlock x:Name="MenuHint" Style="{StaticResource Caption}" Margin="0,5,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
 
-            <TextBlock x:Name="Hint" Style="{StaticResource Caption}" Margin="2,12,0,0"
-                       Text="Сохраняется рядом с оригиналом под новым именем, оригинал не меняется. Данные камеры и место съёмки не переносятся." />
-
-            <DockPanel Margin="0,12,0,0">
-                <Button x:Name="RunButton" DockPanel.Dock="Left" Style="{StaticResource PrimaryButton}" Content="Конвертировать"
-                        Click="Run_Click" />
-                <Button x:Name="ClearButton" DockPanel.Dock="Left" Style="{StaticResource PlainButton}" Content="Очистить список"
-                        Margin="8,0,0,0" Click="Clear_Click" />
-                <TextBlock x:Name="Status" Margin="12,0,0,0" VerticalAlignment="Center" Style="{StaticResource Caption}"
-                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-            </DockPanel>
-        </StackPanel>
-
-        <!-- The pictures -->
-        <Grid>
-            <TextBlock x:Name="EmptyText" Text="Список пуст" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Foreground="{StaticResource SubtleTextBrush}" />
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <ItemsControl x:Name="List">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource ListCard}">
-                                <DockPanel>
-                                    <Button DockPanel.Dock="Right" VerticalAlignment="Center" Style="{StaticResource IconButton}"
-                                            Content="&#xE711;" ToolTip="Убрать из списка" Click="Remove_Click" />
-                                    <Button x:Name="RevealButton" DockPanel.Dock="Right" VerticalAlignment="Center"
-                                            Style="{StaticResource IconButton}" Content="&#xE838;" ToolTip="Показать в папке"
-                                            Click="Reveal_Click" Visibility="Collapsed" />
-                                    <StackPanel VerticalAlignment="Center">
-                                        <DockPanel>
-                                            <TextBlock DockPanel.Dock="Right" Text="{Binding SourceSize}" Margin="8,0,4,0"
-                                                       Style="{StaticResource Caption}" VerticalAlignment="Center" />
-                                            <TextBlock x:Name="PercentText" DockPanel.Dock="Left" Text="{Binding ProgressText}"
-                                                       Width="38" Foreground="{StaticResource AccentBrush}" Visibility="Collapsed"
-                                                       Typography.NumeralAlignment="Tabular" />
-                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}" />
-                                        </DockPanel>
-                                        <!-- A thin bar: only its scale changes, nothing is laid out again -->
-                                        <Border x:Name="Bar" Height="2" Margin="0,6,4,0" CornerRadius="1"
-                                                Background="{StaticResource DividerBrush}" Visibility="Collapsed">
-                                            <Border CornerRadius="1" Background="{StaticResource AccentBrush}" RenderTransformOrigin="0,0">
-                                                <Border.RenderTransform>
-                                                    <ScaleTransform ScaleX="{Binding ProgressFraction}" />
-                                                </Border.RenderTransform>
-                                            </Border>
-                                        </Border>
-                                        <TextBlock x:Name="ResultText" Text="{Binding Result}" Style="{StaticResource Caption}"
-                                                   Margin="0,2,0,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-                            <DataTemplate.Triggers>
-                                <DataTrigger Binding="{Binding CanReveal}" Value="True">
-                                    <Setter TargetName="RevealButton" Property="Visibility" Value="Visible" />
-                                    <Setter TargetName="ResultText" Property="Foreground" Value="{StaticResource OkBrush}" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding IsWorking}" Value="True">
-                                    <Setter TargetName="PercentText" Property="Visibility" Value="Visible" />
-                                    <Setter TargetName="Bar" Property="Visibility" Value="Visible" />
-                                    <Setter TargetName="ResultText" Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding IsFailed}" Value="True">
-                                    <Setter TargetName="ResultText" Property="Foreground" Value="{StaticResource DangerBrush}" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding Result}" Value="">
-                                    <Setter TargetName="ResultText" Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </DataTemplate.Triggers>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-        </Grid>
-    </DockPanel>
+        <TextBlock x:Name="Status" Style="{StaticResource Caption}" Margin="2,10,0,0" TextWrapping="Wrap" />
+    </StackPanel>
 </UserControl>

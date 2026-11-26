@@ -1,0 +1,6 @@
+; Exports of the Explorer context-menu COM server (see WiprissExplorerMenu.c).
+; Based on FileeExplorerMenu.def from Filee (MIT, Myeonggu Kim and Filee contributors); names changed.
+LIBRARY WiprissExplorerMenu
+EXPORTS
+    DllGetClassObject PRIVATE
+    DllCanUnloadNow PRIVATE

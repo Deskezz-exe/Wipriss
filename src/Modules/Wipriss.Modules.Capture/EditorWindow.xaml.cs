@@ -35,6 +35,21 @@ public partial class EditorWindow : Window
     private Shape? _preview;
     private string? _savedPath;
 
+    private readonly Action<BitmapSource>? _done;
+
+    /// <summary>
+    /// Drawing on a picture for another module (the converter): "Готово" hands the picture with the drawings
+    /// back to <paramref name="done"/> and closes; nothing is saved to the screenshots folder.
+    /// </summary>
+    internal EditorWindow(BitmapSource image, Action<BitmapSource> done) : this(image)
+    {
+        _done = done;
+        Title = "Wipriss · Рисование на фото";
+        SaveButton.Content = "Готово";
+        SaveButton.ToolTip = "Вернуть фото с рисунком в окно правки (Ctrl+S)";
+        InfoText.Text = $"{image.PixelWidth} × {image.PixelHeight} px · «Готово» вернёт фото в окно правки";
+    }
+
     internal EditorWindow(BitmapSource image)
     {
         InitializeComponent();
@@ -359,6 +374,12 @@ public partial class EditorWindow : Window
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_done is { } done)
+        {
+            done(Compose(_exportScale));
+            Close();
+            return;
+        }
         try
         {
             Directory.CreateDirectory(AppPaths.ScreenshotsDir);
@@ -388,7 +409,7 @@ public partial class EditorWindow : Window
     {
         if (InfoText is null || _base is null) return;
         int width = (int)Math.Round(_base.PixelWidth * _exportScale), height = (int)Math.Round(_base.PixelHeight * _exportScale);
-        InfoText.Text = $"{width} × {height} px · " + (_savedPath is null ? "не сохранён: закроете окно, и снимок исчезнет" : "сохранён в папке Wipriss");
+        InfoText.Text = $"{width} × {height} px · " + (_done is not null ? "«Готово» вернёт фото в окно правки" : _savedPath is null ?"не сохранён: закроете окно, и снимок исчезнет" : "сохранён в папке Wipriss");
         if (_savedPath is null && ShowFileButton is not null) ShowFileButton.Visibility = Visibility.Collapsed;
     }
 

@@ -37,7 +37,7 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Style="{StaticResource PlainButton}" Content="Копировать" Click="Copy_Click" ToolTip="В буфер обмена (Ctrl+C)" />
-                    <Button Style="{StaticResource PrimaryButton}" Content="Сохранить" Click="Save_Click" Margin="6,0,0,0"
+                    <Button x:Name="SaveButton" Style="{StaticResource PrimaryButton}" Content="Сохранить" Click="Save_Click" Margin="6,0,0,0"
                             ToolTip="В папку Wipriss\Скриншоты (Ctrl+S). Без этого снимок не сохраняется на диск" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">

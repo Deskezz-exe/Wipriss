@@ -10,18 +10,15 @@ namespace Wipriss.Modules.Converter;
 /// </summary>
 public sealed class ConverterModule : IModule, IFileTarget
 {
-    private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".jpg", ".jpeg", ".jfif", ".jpe", ".png", ".webp", ".avif", ".heic", ".heif",
-        ".bmp", ".dib", ".ico", ".tif", ".tiff", ".gif",
-    };
+    private static readonly HashSet<string> Extensions = new(ExplorerMenu.Extensions, StringComparer.OrdinalIgnoreCase);
 
     private IModuleHost? _host;
     private ConverterSession? _session;
+    private ConverterWindow? _window;
 
     public ModuleInfo Info { get; } = ModuleCatalog.Get("converter");
 
-    public Size PanelSize => new(500, 660);
+    public Size PanelSize => new(460, 330);
 
     internal ConverterSession Session => _session ??= new ConverterSession();
 
@@ -32,10 +29,17 @@ public sealed class ConverterModule : IModule, IFileTarget
         _ => "перетащите картинку",
     };
 
-    public void Start(IModuleHost host) => _host = host;
+    public void Start(IModuleHost host)
+    {
+        _host = host;
+        ExplorerMenu.RefreshPath();
+        // Drawn-on copies left by a crash: nothing of them should stay on disk.
+        ConverterSession.DeleteTempFolder();
+    }
 
     public void Stop()
     {
+        _window?.Close();
         _session?.Cancel();
         _session = null;
         _host = null;
@@ -45,10 +49,22 @@ public sealed class ConverterModule : IModule, IFileTarget
 
     public bool CanOpen(string path) => Extensions.Contains(Path.GetExtension(path));
 
-    public void OpenFiles(IReadOnlyList<string> paths)
+    public void OpenFiles(IReadOnlyList<string> paths) => ShowWindow().AddFiles(paths);
+
+    /// <summary>The window with previews and settings; one at a time, brought forward if already open.</summary>
+    internal ConverterWindow ShowWindow()
     {
-        Session.Add(paths.Where(CanOpen));
-        _host?.OpenPanel(Info.Id);
+        _window ??= new ConverterWindow(this);
+        if (!_window.IsVisible) _window.Show();
+        if (_window.WindowState == WindowState.Minimized) _window.WindowState = WindowState.Normal;
+        _window.Activate();
+        return _window;
+    }
+
+    internal void WindowClosed()
+    {
+        _window = null;
+        TrimMemory();
     }
 
     internal void TrimMemory() => _host?.TrimMemory();

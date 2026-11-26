@@ -38,4 +38,16 @@
     <Content Include="Assets\tray-dark.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The Windows 11 Explorer menu (native DLL + unsigned sparse package), built beforehand by
+       tools\build-explorer-menu.ps1 into artifacts\.cache\explorer-menu, goes next to the published Wipriss.exe. -->
+  <PropertyGroup>
+    <ExplorerMenuDir>$(MSBuildThisFileDirectory)..\..\artifacts\.cache\explorer-menu\</ExplorerMenuDir>
+  </PropertyGroup>
+  <Target Name="CopyExplorerMenu" AfterTargets="Publish">
+    <Warning Condition="!Exists('$(ExplorerMenuDir)WiprissExplorerMenu.msix')"
+             Text="Explorer menu not built: run tools\build-explorer-menu.ps1 first (the classic menu still works)." />
+    <Copy Condition="Exists('$(ExplorerMenuDir)WiprissExplorerMenu.msix')"
+          SourceFiles="$(ExplorerMenuDir)WiprissExplorerMenu.dll;$(ExplorerMenuDir)WiprissExplorerMenu.msix" DestinationFolder="$(PublishDir)" />
+  </Target>
+
 </Project>

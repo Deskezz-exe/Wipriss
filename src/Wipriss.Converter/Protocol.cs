@@ -10,9 +10,9 @@ public enum TargetFormat { Jpg, Png, WebP, Avif, Bmp, Ico, Tiff }
 
 public enum ResizeKind { None, Pixels, Percent }
 
-public sealed class ConvertRequest
+/// <summary>What to do with a picture. The request's own values are the default for every file.</summary>
+public class ConvertOptions
 {
-    public List<string> Files { get; set; } = [];
     public TargetFormat Format { get; set; } = TargetFormat.Jpg;
     public ResizeKind Resize { get; set; }
 
@@ -27,8 +27,46 @@ public sealed class ConvertRequest
     /// <summary>Make each file no bigger than this; quality and, if needed, size are lowered.</summary>
     public long? MaxBytes { get; set; }
 
+    /// <summary>Make a plain (one-colour) background transparent: logos, signatures, stamps, scans.
+    /// Only for formats with transparency.</summary>
+    public bool RemoveBackground { get; set; }
+
+    public ConvertOptions Copy() => new()
+    {
+        Format = Format, Resize = Resize, Width = Width, Height = Height, Percent = Percent,
+        MaxBytes = MaxBytes, RemoveBackground = RemoveBackground,
+    };
+}
+
+/// <summary>One file of a request.</summary>
+public sealed class ConvertJob
+{
+    /// <summary>The picture to read.</summary>
+    public string Path { get; set; } = "";
+
+    /// <summary>The original the result is named after and saved next to, when <see cref="Path"/> is a drawn-on
+    /// copy in a temporary folder. Empty: <see cref="Path"/> itself.</summary>
+    public string? NameFrom { get; set; }
+
+    /// <summary>This file's own settings; empty: the request's.</summary>
+    public ConvertOptions? Options { get; set; }
+}
+
+public sealed class ConvertRequest : ConvertOptions
+{
+    /// <summary>Files with the request's settings (the simple form).</summary>
+    public List<string> Files { get; set; } = [];
+
+    /// <summary>Files with their own settings or names; used instead of <see cref="Files"/> when not empty.</summary>
+    public List<ConvertJob> Jobs { get; set; } = [];
+
     /// <summary>Where to save when the original's folder can't be written to.</summary>
     public string? FallbackFolder { get; set; }
+
+    /// <summary>Save everything here instead of next to the originals (previews, pictures to draw on).</summary>
+    public string? OutputFolder { get; set; }
+
+    public List<ConvertJob> AllJobs() => Jobs.Count > 0 ? Jobs : Files.Select(f => new ConvertJob { Path = f }).ToList();
 }
 
 public sealed class ConvertReply
@@ -59,5 +97,7 @@ public sealed class ConvertReply
 
 [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
 [JsonSerializable(typeof(ConvertRequest))]
+[JsonSerializable(typeof(ConvertOptions))]
+[JsonSerializable(typeof(ConvertJob))]
 [JsonSerializable(typeof(ConvertReply))]
 internal sealed partial class ProtocolJson : JsonSerializerContext;

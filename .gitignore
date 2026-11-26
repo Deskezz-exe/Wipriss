@@ -40,3 +40,6 @@ CLAUDE.md
 PLAN.md
 ПУТЕВОДИТЕЛЬ.md
 docs/
+
+# Lock file of the file-based packaging tool (tools/make-explorer-package.cs)
+tools/packages.lock.json

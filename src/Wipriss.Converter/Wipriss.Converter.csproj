@@ -24,4 +24,9 @@
           CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The tests also compile the panel's side of the protocol, which uses the JSON context. -->
+    <InternalsVisibleTo Include="Wipriss.Tests" />
+  </ItemGroup>
+
 </Project>
