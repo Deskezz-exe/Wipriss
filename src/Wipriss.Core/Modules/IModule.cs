@@ -57,3 +57,15 @@ public interface IPanelContext
 /// <summary>How the app creates a module. The factory runs only when the module is switched on,
 /// so a switched-off module never even loads its code.</summary>
 public sealed record ModuleRegistration(string Id, Func<IModule> Create);
+
+/// <summary>
+/// A module that takes files dropped on the island (later also from the Explorer menu).
+/// <see cref="CanOpen"/> looks at the name only and must be instant: it runs while a file is dragged.
+/// </summary>
+public interface IFileTarget
+{
+    bool CanOpen(string path);
+
+    /// <summary>Takes the files and opens the module's panel with them.</summary>
+    void OpenFiles(IReadOnlyList<string> paths);
+}

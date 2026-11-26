@@ -20,6 +20,7 @@ public partial class App : Application
         new("network", () => new Wipriss.Modules.Network.NetworkModule()),
         new("ports", () => new Wipriss.Modules.Ports.PortsModule()),
         new("capture", () => new Wipriss.Modules.Capture.CaptureModule()),
+        new("converter", () => new Wipriss.Modules.Converter.ConverterModule()),
     ];
 
     private SingleInstance? _instance;

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    One-shot image converter. Wipriss starts it for one batch, it reads the job from stdin,
+    reports each file on stdout and exits, so Magick.NET never stays in the island's memory.
+    Strange files are decoded here, away from the island.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Wipriss.Converter</AssemblyName>
+    <RootNamespace>Wipriss.Converter</RootNamespace>
+    <ApplicationIcon>..\Wipriss.App\Assets\wipriss.ico</ApplicationIcon>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Magick.NET-Q8-x64" Version="15.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ImageMagick and the libraries inside it (some LGPL): their licenses ship with the app. -->
+    <None Include="$(NuGetPackageRoot)magick.net-q8-x64\15.1.0\Notice.txt" Link="licenses\Magick.NET-notice.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+</Project>

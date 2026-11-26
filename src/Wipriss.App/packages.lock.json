@@ -2,8 +2,27 @@
   "version": 1,
   "dependencies": {
     "net10.0-windows7.0": {
+      "Magick.NET-Q8-x64": {
+        "type": "Transitive",
+        "resolved": "15.1.0",
+        "contentHash": "Fo6mQGnG+MtO8ehF/vpGeN/4OlZRDLO7uv4v2yOlxJGxX0JurLMBt1nYMX4QzPVssdlnpI446W2PEw+27beHbQ==",
+        "dependencies": {
+          "Magick.NET.Core": "15.1.0"
+        }
+      },
+      "Magick.NET.Core": {
+        "type": "Transitive",
+        "resolved": "15.1.0",
+        "contentHash": "WIaemRN4tJvw5BNUfsO8/V3LojV5FOCojQ/sQ4ruXme1o2frRYfcvHPhKV5E6TbYoEdVEvtGX+8Wbut0F2lJHg=="
+      },
       "wipriss.capture": {
         "type": "Project"
+      },
+      "wipriss.converter": {
+        "type": "Project",
+        "dependencies": {
+          "Magick.NET-Q8-x64": "[15.1.0, )"
+        }
       },
       "wipriss.core": {
         "type": "Project"
@@ -22,6 +41,12 @@
         }
       },
       "wipriss.modules.clipboardhistory": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )"
+        }
+      },
+      "wipriss.modules.converter": {
         "type": "Project",
         "dependencies": {
           "Wipriss.Core": "[0.1.0, )"

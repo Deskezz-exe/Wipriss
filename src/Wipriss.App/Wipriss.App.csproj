@@ -26,6 +26,9 @@
     <ProjectReference Include="..\Modules\Wipriss.Modules.Network\Wipriss.Modules.Network.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Ports\Wipriss.Modules.Ports.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Capture\Wipriss.Modules.Capture.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Converter\Wipriss.Modules.Converter.csproj" />
+    <!-- The one-shot picture converter ships next to Wipriss.exe (Magick.NET loads only there) -->
+    <ProjectReference Include="..\Wipriss.Converter\Wipriss.Converter.csproj" />
     <!-- The one-shot admin helper ships next to Wipriss.exe -->
     <ProjectReference Include="..\Wipriss.Helper\Wipriss.Helper.csproj" />
   </ItemGroup>

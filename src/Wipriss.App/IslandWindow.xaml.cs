@@ -198,6 +198,63 @@ public partial class IslandWindow : Window
         if (_expanded) _collapseDelay.Start();
     }
 
+    // Files dragged from Explorer: the island opens, and the files go to the tile they are dropped on,
+    // or to the first module that takes them. Only names are looked at while dragging.
+    private void Island_DragEnter(object sender, DragEventArgs e)
+    {
+        _collapseDelay.Stop();
+        if (!_expanded) _expandDelay.Start();
+        Island_DragOver(sender, e);
+    }
+
+    private void Island_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = FileTargetFor(DroppedFiles(e), e.OriginalSource) is null ? DragDropEffects.None : DragDropEffects.Copy;
+        e.Handled = true;
+    }
+
+    private void Island_DragLeave(object sender, DragEventArgs e)
+    {
+        _expandDelay.Stop();
+        if (_expanded) _collapseDelay.Start();
+    }
+
+    private void Island_Drop(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        var files = DroppedFiles(e);
+        var target = FileTargetFor(files, e.OriginalSource);
+        _expandDelay.Stop();
+        CollapseNow();
+        if (target is null) return;
+        try { target.OpenFiles(files.Where(target.CanOpen).ToList()); }
+        catch (Exception ex) { CrashLog.Write(ex); }
+    }
+
+    private static string[] DroppedFiles(DragEventArgs e) =>
+        e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] files ? files : [];
+
+    private IFileTarget? FileTargetFor(string[] files, object? over)
+    {
+        if (files.Length == 0) return null;
+        bool Takes(IModule? m) => m is IFileTarget t && files.Any(t.CanOpen);
+
+        // The tile under the cursor, if it takes these files.
+        if (TileUnder(over) is { } tile && _modules.Get(tile.Info.Id) is { } under && Takes(under))
+            return (IFileTarget)under;
+
+        foreach (var info in ModuleCatalog.All)
+            if (_modules.Get(info.Id) is { } module && Takes(module)) return (IFileTarget)module;
+        return null;
+    }
+
+    private static TileItem? TileUnder(object? source)
+    {
+        for (var node = source as DependencyObject; node is not null; node = VisualTreeHelper.GetParent(node))
+            if (node is FrameworkElement { DataContext: TileItem tile }) return tile;
+        return null;
+    }
+
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         SetExpanded(false);

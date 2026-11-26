@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The panel only. Pictures are converted by Wipriss.Converter.exe, so Magick.NET never loads here. -->
+  <PropertyGroup>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Wipriss.Core\Wipriss.Core.csproj" />
+    <Compile Include="..\..\Wipriss.Converter\Protocol.cs" Link="Protocol.cs" />
+  </ItemGroup>
+
+</Project>
