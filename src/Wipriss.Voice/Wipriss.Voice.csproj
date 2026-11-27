@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Voice typing engine. Wipriss starts it when dictation is turned on (or to download the model),
+    talks to it with JSON lines over stdin/stdout and the process exits when Wipriss closes stdin,
+    asks it to, or after the idle time the owner picked. The speech model and sherpa-onnx never load
+    into the island. The microphone is open only between "start" and "stop".
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Wipriss.Voice</AssemblyName>
+    <RootNamespace>Wipriss.Voice</RootNamespace>
+    <ApplicationIcon>..\Wipriss.App\Assets\wipriss.ico</ApplicationIcon>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="org.k2fsa.sherpa.onnx" Version="2.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Wipriss.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,6 +1,6 @@
 # Third-party notices
 
-Wipriss itself uses only .NET and Windows. The exceptions are the picture converter, the table viewer and the code ported from other projects below.
+Wipriss itself uses only .NET and Windows. The exceptions are the picture converter, the table viewer, voice typing and the code ported from other projects below.
 
 Each third-party component is listed here with its name, author, license and link. Where a license requires it, the full license text ships with the app.
 
@@ -33,6 +33,25 @@ ExcelDataReader reads XLSX, XLSM, XLSB and XLS files; ExcelNumberFormat shows nu
 > THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 OpenDocument (ODS) and CSV files are read by Wipriss's own code. The viewer only shows the values a file has saved: formulas are not recalculated, macros and external links never run.
+
+### Voice typing (`Wipriss.Voice.exe`)
+
+| Package | Author | License | Link |
+|---|---|---|---|
+| org.k2fsa.sherpa.onnx 2.0.3 (with its win-x64 runtime) | k2-fsa (Next-gen Kaldi) | Apache-2.0 | https://github.com/k2-fsa/sherpa-onnx |
+| ONNX Runtime (inside that runtime, `onnxruntime.dll`) | Microsoft Corporation | MIT | https://github.com/microsoft/onnxruntime |
+
+sherpa-onnx recognizes speech offline, it is used unchanged as a NuGet package. The full Apache-2.0 text: https://www.apache.org/licenses/LICENSE-2.0. ONNX Runtime: "Copyright (c) Microsoft Corporation", MIT, the same text as above.
+
+The speech model is **not** shipped with the app and not stored in this repository. It is downloaded only when the owner presses the button, from links pinned to one revision, and every file is checked against its SHA-256 before use:
+
+| Model | Author | License | Link |
+|---|---|---|---|
+| GigaAM v3 (RNN-T, with punctuation), ONNX export by the sherpa-onnx authors | GigaChat Team (Salute Developers) | MIT | https://github.com/salute-developers/GigaAM |
+
+The model's license file is downloaded with it and lies next to it.
+
+The microphone is recorded with Windows' own waveIn API, without a library.
 
 ### Code ported from other projects
 

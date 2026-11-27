@@ -25,6 +25,67 @@
         "resolved": "15.1.0",
         "contentHash": "WIaemRN4tJvw5BNUfsO8/V3LojV5FOCojQ/sQ4ruXme1o2frRYfcvHPhKV5E6TbYoEdVEvtGX+8Wbut0F2lJHg=="
       },
+      "org.k2fsa.sherpa.onnx": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "nk2Ti6+UTqWC6dfq6IFapxRxjAKK7CVHDsuQlKK4+XNiIH7UafFFLumQ/3fnQL1ZpT1rEtRVrP/Um08WmJ4dpw==",
+        "dependencies": {
+          "org.k2fsa.sherpa.onnx.runtime.android-arm64": "2.0.3",
+          "org.k2fsa.sherpa.onnx.runtime.android-x64": "2.0.3",
+          "org.k2fsa.sherpa.onnx.runtime.linux-arm64": "2.0.3",
+          "org.k2fsa.sherpa.onnx.runtime.linux-x64": "2.0.3",
+          "org.k2fsa.sherpa.onnx.runtime.osx-arm64": "2.0.3",
+          "org.k2fsa.sherpa.onnx.runtime.osx-x64": "2.0.3",
+          "org.k2fsa.sherpa.onnx.runtime.win-arm64": "2.0.3",
+          "org.k2fsa.sherpa.onnx.runtime.win-x64": "2.0.3",
+          "org.k2fsa.sherpa.onnx.runtime.win-x86": "2.0.3"
+        }
+      },
+      "org.k2fsa.sherpa.onnx.runtime.android-arm64": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "pEHXRQpkaHmya03Uw/fpsq53urHr1jRaobXeUx6qvMWQF6PZAo9zSoeNKGYhOXE72YcO59n8Qa969yyvtxJ+aQ=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.android-x64": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "e1lTRLo0718SmfMFgRAanE7P39AguarOjSf6Y6WJxkOMrEl/Kh0svRGEH683XwqpbYWFwIbgYmJ6fDHOx993sg=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.linux-arm64": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "Gz2709IJekV6M5Yqd1K2Qvy2ubOXSa+6J9sndFetzkRsHT8mAADUG0PmoZCcgLLsNqkofuTkFwZ+5c1xE//3Iw=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.linux-x64": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "vrw/PsKb5vKcmLXXrZTGOacVd67Cm/YxdPCmuq3/FvwUjLmB+c4qIgVat/ukFfI+E5Ve/C2L8SScLhEwkOCblA=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.osx-arm64": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "6DvfnIUxNEHJLG/hwB6tny4cx+tHaN+8l+ZBGUKx5EySzS4ZntCyJSEPq3/ZFUg/CTm2Z4uq4G5Z3Fqy4Hk91A=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.osx-x64": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "JZrWsW/0kzzD9JWQ8Km0n9P6KA1dgukvYIRPxVhApxF4r9/kTESTQaI650Jx2r8Bk/TakHvAa5MDRLYlBi2etA=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.win-arm64": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "zOx6PHAW0L7zYrv+fBar+M9cvyJCPsSIZHwprsfPQ53sm/QvHQOepuymFa7afm3gidmte/eDkdz0qIK7HeA5LA=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.win-x64": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "oJ4+JBSOqNnd8RYJrmM8gvwpvjm4F9cYmtFkNKHoe8i0dT+HoOSKj65VEPdFJ/PifhZMXm0FhHDjSquy7+j6zw=="
+      },
+      "org.k2fsa.sherpa.onnx.runtime.win-x86": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "u5Tf2GP1PPdsb57X45Stp/ZBV82JC1G7iuxH3PWtX/iv4qhgLY6yDujlrOcxXDh6JjkvuPCT7cTBCTXeTvwzXw=="
+      },
       "wipriss.capture": {
         "type": "Project"
       },
@@ -104,6 +165,12 @@
           "ExcelDataReader": "[3.9.0, )",
           "ExcelNumberFormat": "[1.2.0, )",
           "Wipriss.Core": "[0.1.0, )"
+        }
+      },
+      "wipriss.voice": {
+        "type": "Project",
+        "dependencies": {
+          "org.k2fsa.sherpa.onnx": "[2.0.3, )"
         }
       }
     }

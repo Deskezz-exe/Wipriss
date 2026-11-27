@@ -32,6 +32,8 @@
     <ProjectReference Include="..\Modules\Wipriss.Modules.Tables\Wipriss.Modules.Tables.csproj" />
     <!-- The table viewer ships next to Wipriss.exe (a separate process: tables never load into the island) -->
     <ProjectReference Include="..\Wipriss.Reader\Wipriss.Reader.csproj" />
+    <!-- The voice typing engine ships next to Wipriss.exe (sherpa-onnx and the model load only there) -->
+    <ProjectReference Include="..\Wipriss.Voice\Wipriss.Voice.csproj" />
     <!-- The one-shot admin helper ships next to Wipriss.exe -->
     <ProjectReference Include="..\Wipriss.Helper\Wipriss.Helper.csproj" />
   </ItemGroup>

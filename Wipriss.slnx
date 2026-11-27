@@ -7,6 +7,7 @@
     <Project Path="src/Wipriss.Helper/Wipriss.Helper.csproj" />
     <Project Path="src/Wipriss.ProcessTools/Wipriss.ProcessTools.csproj" />
     <Project Path="src/Wipriss.Reader/Wipriss.Reader.csproj" />
+    <Project Path="src/Wipriss.Voice/Wipriss.Voice.csproj" />
   </Folder>
   <Folder Name="/src/Modules/">
     <Project Path="src/Modules/Wipriss.Modules.Capture/Wipriss.Modules.Capture.csproj" />
