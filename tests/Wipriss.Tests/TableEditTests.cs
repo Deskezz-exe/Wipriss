@@ -8,6 +8,7 @@ using Wipriss.Reader.Data;
 namespace Wipriss.Tests;
 
 /// <summary>Editing tables: the layer of changes, spare rows and columns, saving CSV and XLSX without harm.</summary>
+[Collection("Table files")]
 public class TableEditTests : IDisposable
 {
     private static readonly XNamespace Main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";

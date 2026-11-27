@@ -50,6 +50,18 @@ internal abstract class Sheet
 
     public virtual IReadOnlyList<CellRange> Merges => [];
 
+    /// <summary>The cell's formatting (only XLSX/XLSM keep it; other tables are plain).</summary>
+    public virtual CellFormat Format(int row, int column) => CellFormat.Plain;
+
+    /// <summary>The workbook's usual font size in points: <see cref="CellFormat.Size"/> 0 means this.</summary>
+    public virtual double DefaultFontSize => 11;
+
+    /// <summary>The row's height saved in the file, in points, and whether the owner set it by hand in Excel.</summary>
+    public virtual (double Points, bool Custom)? RowHeight(int row) => null;
+
+    /// <summary>A hint that some cell of the row wraps its text (the row may need to be taller).</summary>
+    public virtual bool RowMayWrap(int row) => false;
+
     /// <summary>Column width saved in the file, in characters, or null.</summary>
     public virtual double? WidthHint(int column) => null;
 

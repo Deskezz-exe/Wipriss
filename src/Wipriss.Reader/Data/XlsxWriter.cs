@@ -12,9 +12,10 @@ internal sealed class LockedCellsException(string message) : Exception(message);
 
 /// <summary>
 /// Saves changed cells into an XLSX/XLSM by editing the sheet's XML inside the package. Everything else in the file
-/// (charts, pivot tables, pictures, macros, comments, styles, other sheets) is copied untouched. A changed cell keeps
+/// (charts, pivot tables, pictures, macros, comments, other sheets) is copied untouched. A changed cell keeps
 /// its style; text is stored right in the cell, numbers as numbers, "=…" as a formula. Excel recalculates the
-/// formulas when it opens the file next time (the stored calculation order is dropped for that).
+/// formulas when it opens the file next time (the stored calculation order is dropped for that). A cell with a new
+/// look gets a new style added after the existing ones (<see cref="XlsxStyleBook"/>); merged areas are rewritten.
 /// </summary>
 internal static class XlsxWriter
 {
@@ -26,9 +27,9 @@ internal static class XlsxWriter
 
         using var original = new ZipArchive(Workbook.OpenShared(source), ZipArchiveMode.Read);
         var parts = new XlsxParts(original);
-        var kinds = parts.StyleKinds();
+        var book = XlsxStyleBook.Load(parts);
 
-        var plan = new List<(string Path, SortedDictionary<int, SortedDictionary<int, string?>> Rows)>();
+        var plan = new List<(string Path, SortedDictionary<int, SortedDictionary<int, CellEdit>> Rows, IReadOnlyList<CellRange>? Merges)>();
         foreach (var sheet in changed)
         {
             if (!parts.SheetPaths.TryGetValue(sheet.Name, out var path) || parts.Entry(path) is null)
@@ -38,17 +39,22 @@ internal static class XlsxWriter
             var bad = sheet.Edits.Keys.Where(locks.ContainsKey).Take(6).Select(k => CellRef.Format(k.Row, k.Column)).ToList();
             if (bad.Count > 0)
                 throw new LockedCellsException($"Эти ячейки можно изменить только в Excel: {string.Join(", ", bad)}. Верните их (Ctrl+Z) и сохраните снова.");
-            var rows = new SortedDictionary<int, SortedDictionary<int, string?>>();
+            var rows = new SortedDictionary<int, SortedDictionary<int, CellEdit>>();
             foreach (var ((row, column), text) in sheet.Edits)
             {
                 if (!rows.TryGetValue(row, out var cells)) rows[row] = cells = [];
-                cells[column] = text;
+                cells[column] = new CellEdit(true, text, null);
             }
-            plan.Add((path, rows));
+            foreach (var ((row, column), format) in sheet.FormatEdits)
+            {
+                if (!rows.TryGetValue(row, out var cells)) rows[row] = cells = [];
+                cells[column] = cells.TryGetValue(column, out var edit) ? edit with { Format = format } : new CellEdit(false, null, format);
+            }
+            plan.Add((path, rows, sheet.MergesChanged ? sheet.Merges : null));
         }
 
         using var package = new ZipArchive(new FileStream(output, FileMode.Open, FileAccess.ReadWrite, FileShare.None), ZipArchiveMode.Update);
-        foreach (var (path, rows) in plan)
+        foreach (var (path, rows, merges) in plan)
         {
             cancel.ThrowIfCancellationRequested();
             var from = parts.Entry(path)!;
@@ -64,8 +70,9 @@ internal static class XlsxWriter
                 NewLineHandling = NewLineHandling.None,
                 CloseOutput = true,
             });
-            new SheetRewriter(input, writer, rows, kinds, culture, cancel).Run();
+            new SheetRewriter(input, writer, rows, merges, book, culture, cancel).Run();
         }
+        book.Save(package, parts);
         RecalculateOnOpen(package, parts);
     }
 
@@ -113,10 +120,19 @@ internal static class XlsxWriter
     }
 
     /// <summary>Copies a sheet's XML node by node; rows with changes are read whole, changed and written back.</summary>
-    private sealed class SheetRewriter(XmlReader reader, XmlWriter writer, SortedDictionary<int, SortedDictionary<int, string?>> edits,
-        byte[] styleKinds, CultureInfo culture, CancellationToken cancel)
+    private sealed class SheetRewriter(XmlReader reader, XmlWriter writer, SortedDictionary<int, SortedDictionary<int, CellEdit>> edits,
+        IReadOnlyList<CellRange>? merges, XlsxStyleBook styles, CultureInfo culture, CancellationToken cancel)
     {
+        /// <summary>Parts of a sheet that come after the merged cells; new merges go before the first of them.</summary>
+        private static readonly HashSet<string> AfterMerges =
+        [
+            "phoneticPr", "conditionalFormatting", "dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup",
+            "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches", "ignoredErrors", "smartTags", "drawing",
+            "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst",
+        ];
+
         private XNamespace _ns = XNamespace.None;
+        private bool _mergesWritten;
 
         public void Run()
         {
@@ -138,10 +154,34 @@ internal static class XlsxWriter
                         dimension.WriteTo(writer);
                         continue;
                     }
+                    if (merges is not null && reader.LocalName == "mergeCells")
+                    {
+                        WriteMerges();
+                        reader.Skip();
+                        continue;
+                    }
+                    if (merges is not null && AfterMerges.Contains(reader.LocalName)) WriteMerges();
                 }
+                if (merges is not null && reader.NodeType == XmlNodeType.EndElement && reader.Depth == 0) WriteMerges();
                 CopyNode();
                 reader.Read();
             }
+        }
+
+        private void WriteMerges()
+        {
+            if (_mergesWritten || merges is null) return;
+            _mergesWritten = true;
+            if (merges.Count == 0) return;
+            writer.WriteStartElement("mergeCells", _ns.NamespaceName);
+            writer.WriteAttributeString("count", merges.Count.ToString(CultureInfo.InvariantCulture));
+            foreach (var m in merges)
+            {
+                writer.WriteStartElement("mergeCell", _ns.NamespaceName);
+                writer.WriteAttributeString("ref", $"{CellRef.Format(m.FromRow, m.FromColumn)}:{CellRef.Format(m.ToRow, m.ToColumn)}");
+                writer.WriteEndElement();
+            }
+            writer.WriteEndElement();
         }
 
         private void SheetData()
@@ -189,7 +229,7 @@ internal static class XlsxWriter
             return row;
         }
 
-        private void Change(XElement row, SortedDictionary<int, string?> cells)
+        private void Change(XElement row, SortedDictionary<int, CellEdit> cells)
         {
             var ns = _ns;
             int rowIndex = CellRef.ParseRow((string?)row.Attribute("r")) ?? 0;
@@ -203,17 +243,19 @@ internal static class XlsxWriter
                 // Cells may leave out their address (it is then the next column): new cells around need them.
                 if (cell.Attribute("r") is null) cell.SetAttributeValue("r", CellRef.Format(rowIndex, column));
             }
-            bool added = false;
-            foreach (var (column, text) in cells)
+            bool added = false, wrapChanged = false;
+            foreach (var (column, edit) in cells)
             {
                 if (byColumn.TryGetValue(column, out var cell))
                 {
-                    SetValue(cell, text);
+                    wrapChanged |= Restyle(cell, edit);
+                    if (edit.HasText) SetValue(cell, edit.Text);
                     continue;
                 }
-                if (text is null) continue;
+                if (edit.Text is null && edit.Format is null) continue;
                 cell = new XElement(ns + "c", new XAttribute("r", CellRef.Format(rowIndex, column)));
-                SetValue(cell, text);
+                wrapChanged |= Restyle(cell, edit);
+                if (edit.HasText) SetValue(cell, edit.Text);
                 // Cells go in column order.
                 var next = byColumn.FirstOrDefault(p => p.Key > column).Value;
                 if (next is not null) next.AddBeforeSelf(cell);
@@ -224,6 +266,22 @@ internal static class XlsxWriter
             }
             // "spans" is only a hint of the row's width; a wrong one upsets Excel, none is fine.
             if (added) row.Attribute("spans")?.Remove();
+            // Wrapping turned on or off: a height Excel worked out itself is dropped so it fits the row again.
+            if (wrapChanged && (string?)row.Attribute("customHeight") is not ("1" or "true"))
+            {
+                row.Attribute("ht")?.Remove();
+                row.Attribute("customHeight")?.Remove();
+            }
+        }
+
+        /// <summary>Gives the cell the style of its new look. Returns true when its wrapping changed.</summary>
+        private bool Restyle(XElement cell, CellEdit edit)
+        {
+            if (edit.Format is not { } look) return false;
+            int old = (int?)cell.Attribute("s") ?? 0;
+            int style = styles.Style(old, look);
+            cell.SetAttributeValue("s", style == 0 ? null : style);
+            return (styles.Look(old).Mode == TextMode.Wrap) != (look.Mode == TextMode.Wrap);
         }
 
         private void SetValue(XElement cell, string? text)
@@ -239,7 +297,7 @@ internal static class XlsxWriter
             cell.Elements().Where(e => e.Name.LocalName is "f" or "v" or "is").Remove();
             if (text is null) return;
 
-            byte kind = style is { } s && (uint)s < (uint)styleKinds.Length ? styleKinds[s] : (byte)0;
+            byte kind = style is { } s ? styles.Kind(s) : (byte)0;
             var value = CellValue.Classify(text, kind, culture);
             XElement content = value.Kind switch
             {
@@ -285,9 +343,9 @@ internal static class XlsxWriter
             int maxRow = -1, maxColumn = -1;
             foreach (var (row, cells) in edits)
             {
-                foreach (var (column, text) in cells)
+                foreach (var (column, edit) in cells)
                 {
-                    if (text is null) continue;
+                    if (edit.Text is null && edit.Format is null) continue;
                     maxRow = Math.Max(maxRow, row);
                     maxColumn = Math.Max(maxColumn, column);
                 }
@@ -344,6 +402,9 @@ internal static class XlsxWriter
         }
     }
 }
+
+/// <summary>What changes in one cell: its text (when <see cref="HasText"/>), its look (when not null), or both.</summary>
+internal readonly record struct CellEdit(bool HasText, string? Text, CellFormat? Format);
 
 internal enum CellKind { Text, Number, Bool, Formula }
 

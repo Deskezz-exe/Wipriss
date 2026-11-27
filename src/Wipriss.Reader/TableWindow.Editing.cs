@@ -48,6 +48,7 @@ public partial class TableWindow
             if (on && book.Format == TableFormat.Excel) _ = FindLocksAsync(book);
         }
         UpdateSaveButton();
+        UpdateFormatBar();
     }
 
     /// <summary>Which cells of an Excel file can't be changed safely (array formulas, smart table headers).</summary>

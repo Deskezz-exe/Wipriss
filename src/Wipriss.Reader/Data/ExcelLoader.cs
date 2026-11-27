@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Text;
 using ExcelDataReader;
 using ExcelNumberFormat;
@@ -25,6 +26,8 @@ internal static class ExcelLoader
         var sheets = new List<Sheet>();
         long total = 0;
 
+        // Formatting (XLSX only) is read from the package at the same time, on another thread.
+        var styles = Path.GetExtension(path).ToLowerInvariant() is ".xlsx" or ".xlsm" ? Task.Run(() => ReadStyles(path, cancel), cancel) : null;
         using var stream = Workbook.OpenShared(path);
         using var reader = ExcelReaderFactory.CreateReader(stream, new ExcelReaderConfiguration
         {
@@ -125,7 +128,29 @@ internal static class ExcelLoader
         while (reader.NextResult());
 
         progress?.Report(total);
+        if (styles is not null)
+        {
+            var found = styles.GetAwaiter().GetResult();
+            foreach (var sheet in sheets.OfType<MemorySheet>())
+            {
+                if (found.TryGetValue(sheet.Name, out var looks)) sheet.Formats = looks;
+            }
+        }
         return new Workbook(path, TableFormat.Excel, sheets);
+    }
+
+    /// <summary>Formatting of every sheet; a damaged styles part only leaves the table plain.</summary>
+    private static Dictionary<string, SheetFormats> ReadStyles(string path, CancellationToken cancel)
+    {
+        try
+        {
+            return XlsxStyles.Read(path, null, cancel);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or System.Xml.XmlException or UnauthorizedAccessException
+                                   or FormatException or OverflowException)
+        {
+            return [];
+        }
     }
 
     private static double[] CreateNaN(int count)

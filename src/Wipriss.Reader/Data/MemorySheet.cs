@@ -22,6 +22,17 @@ internal sealed class MemorySheet : Sheet
 
     public override bool NumbersFromText => false;
 
+    /// <summary>Formatting read from an XLSX, or null.</summary>
+    public SheetFormats? Formats { get; set; }
+
+    public override CellFormat Format(int row, int column) => Formats?[row, column] ?? CellFormat.Plain;
+
+    public override double DefaultFontSize => Formats?.DefaultSize ?? 11;
+
+    public override (double Points, bool Custom)? RowHeight(int row) => Formats?.RowHeight(row);
+
+    public override bool RowMayWrap(int row) => Formats?.RowHasWrap(row) == true;
+
     /// <summary>Adds a row. <paramref name="numbers"/> holds NaN where a cell is not a number; null if none is.</summary>
     public void AddRow(string?[] texts, double[]? numbers)
     {

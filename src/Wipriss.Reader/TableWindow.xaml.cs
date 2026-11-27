@@ -515,6 +515,7 @@ public partial class TableWindow : Window
 
     private void ShowActiveCell()
     {
+        UpdateFormatBar();
         if (_view is not { } view || view.ColumnCount == 0)
         {
             CellAddress.Text = "";
@@ -856,6 +857,15 @@ public partial class TableWindow : Window
                 break;
             case Key.Y when ctrl && _editing && Table.IsKeyboardFocused:
                 UndoRedo(undo: false);
+                break;
+            case Key.B when ctrl && CanFormat && Table.IsKeyboardFocused:
+                ToggleBold();
+                break;
+            case Key.I when ctrl && CanFormat && Table.IsKeyboardFocused:
+                ToggleItalic();
+                break;
+            case Key.U when ctrl && CanFormat && Table.IsKeyboardFocused:
+                ToggleUnderline();
                 break;
             default:
                 return;

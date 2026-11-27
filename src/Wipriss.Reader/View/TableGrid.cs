@@ -46,7 +46,10 @@ internal sealed class TableGrid : FrameworkElement
     private const double BaseFont = 13;
     private const double BaseRow = 28;
     private const double MinColumn = 28;
-    private const int SpillColumns = 8;
+    /// <summary>"Show whole" text may cover this many cells next to its own.</summary>
+    private const int OverflowColumns = 2;
+    /// <summary>Excel's usual row is 15 pt; here it is <see cref="BaseRow"/> pixels.</summary>
+    private const double PixelsPerPoint = BaseRow / 15;
 
     private TableView? _view;
     private double[] _widths = []; // at zoom 1
@@ -61,6 +64,14 @@ internal sealed class TableGrid : FrameworkElement
     private bool _selecting;
     private int _resizing = -1;
     private double _resizeStart, _resizeWidth;
+
+    // Row heights at the current zoom, by sheet row (rows with a height from the file or wrapped text), and the tops
+    // of the rows from the first one on screen.
+    private readonly Dictionary<int, double> _heights = [];
+    private readonly List<double> _tops = [];
+    private int _topsFirst = -1;
+    private readonly Dictionary<uint, SolidColorBrush> _brushes = [];
+    private static readonly Typeface[] Faces = MakeFaces();
 
     public TableGrid()
     {
@@ -125,7 +136,15 @@ internal sealed class TableGrid : FrameworkElement
 
     private double Pad => Math.Round(8 * _zoom);
 
-    private double PinnedHeight => (_view?.PinnedRows ?? 0) * RowHeight;
+    private double PinnedHeight
+    {
+        get
+        {
+            double height = 0;
+            for (int r = -(_view?.PinnedRows ?? 0); r < 0; r++) height += RowH(r);
+            return height;
+        }
+    }
 
     private double TopOfRows => HeaderHeight + PinnedHeight;
 
@@ -139,7 +158,23 @@ internal sealed class TableGrid : FrameworkElement
         }
     }
 
-    public int VisibleRows => Math.Max(1, (int)((ActualHeight - TopOfRows) / RowHeight));
+    public int VisibleRows
+    {
+        get
+        {
+            if (_view is null) return Math.Max(1, (int)((ActualHeight - TopOfRows) / RowHeight));
+            double room = ActualHeight - TopOfRows, used = 0;
+            int count = 0;
+            for (int r = _firstRow; r < _view.RowCount && count < 2000; r++)
+            {
+                used += RowH(r);
+                if (used > room) break;
+                count++;
+            }
+            if (_firstRow + count >= _view.RowCount) count += (int)Math.Max(0, (room - used) / RowHeight);
+            return Math.Max(1, count);
+        }
+    }
 
     public double DataWidth => Math.Max(0, ActualWidth - RowHeaderWidth);
 
@@ -148,6 +183,7 @@ internal sealed class TableGrid : FrameworkElement
     /// <summary>Shows another sheet (or the same sheet in a new order). Keeps the widths when the columns stay.</summary>
     public void SetView(TableView view, bool keepLayout)
     {
+        ForgetHeights();
         bool sameColumns = keepLayout && _view is not null && _view.Sheet == view.Sheet && _widths.Length == view.ColumnCount;
         _view = view;
         if (!sameColumns)
@@ -164,7 +200,11 @@ internal sealed class TableGrid : FrameworkElement
         ActiveCellChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void Refresh() => InvalidateVisual();
+    public void Refresh()
+    {
+        ForgetHeights();
+        InvalidateVisual();
+    }
 
     /// <summary>After the sheet grew or shrank (spare columns shown, a new column filled): new columns get a width.</summary>
     public void SyncColumns()
@@ -196,7 +236,7 @@ internal sealed class TableGrid : FrameworkElement
         double y = RowY(viewRow);
         double left = Math.Max(x, rowHeadW);
         if (x + w <= rowHeadW || left >= ActualWidth) return null;
-        return new Rect(left, y, Math.Max(24, Math.Min(x + w, ActualWidth) - left), RowHeight);
+        return new Rect(left, y, Math.Max(24, Math.Min(x + w, ActualWidth) - left), RowH(viewRow));
     }
 
     public double CellFontSize => FontSize;
@@ -348,6 +388,7 @@ internal sealed class TableGrid : FrameworkElement
 
     private void UpdateLefts()
     {
+        ForgetHeights();
         var lefts = new double[_widths.Length + 1];
         for (int c = 0; c < _widths.Length; c++) lefts[c + 1] = lefts[c] + Math.Round(_widths[c] * _zoom);
         _lefts = lefts;
@@ -396,10 +437,10 @@ internal sealed class TableGrid : FrameworkElement
         if (_view is not { } view || width <= 0 || height <= 0) return;
 
         double dip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        double rowH = RowHeight, headH = HeaderHeight, rowHeadW = RowHeaderWidth, top = TopOfRows;
+        double headH = HeaderHeight, rowHeadW = RowHeaderWidth, top = TopOfRows, pinnedH = PinnedHeight;
         int pinned = view.PinnedRows;
-        int visible = (int)Math.Ceiling((height - top) / rowH) + 1;
-        int lastRow = Math.Min(view.RowCount, _firstRow + visible);
+        int lastRow = _firstRow;
+        while (lastRow < view.RowCount && RowY(lastRow) < height) lastRow++;
         var (firstCol, lastCol) = VisibleColumns();
 
         // --- Data area ---
@@ -407,32 +448,34 @@ internal sealed class TableGrid : FrameworkElement
         for (int r = _firstRow; r < lastRow; r++)
         {
             Brush? fill = r == _hoverRow ? HoverBrush : (r & 1) == 1 ? StripeBrush : null;
-            if (fill is not null) dc.DrawRectangle(fill, null, new Rect(rowHeadW, RowY(r), width - rowHeadW, rowH));
+            if (fill is not null) dc.DrawRectangle(fill, null, new Rect(rowHeadW, RowY(r), width - rowHeadW, RowH(r)));
         }
         DrawSpare(dc, view, _firstRow, lastRow, rowHeadW, width);
+        DrawFills(dc, view, _firstRow, lastRow, firstCol, lastCol, rowHeadW);
         DrawEdited(dc, view, _firstRow, lastRow, firstCol, lastCol, rowHeadW);
         DrawMatches(dc, view, _firstRow, lastRow, firstCol, lastCol, rowHeadW);
         DrawSelection(dc, top, rowHeadW, pinnedArea: false);
         DrawGridLines(dc, firstCol, lastCol, top, Math.Min(height, RowY(lastRow)), _firstRow, lastRow, rowHeadW);
         var covered = DrawMerges(dc, view, _firstRow, lastRow, firstCol, lastCol, rowHeadW, dip, pinnedArea: false);
         for (int r = _firstRow; r < lastRow; r++)
-            DrawRowText(dc, view, r, view.SheetRow(r), RowY(r), rowH, firstCol, lastCol, rowHeadW, Regular, dip, covered);
+            DrawRowText(dc, view, r, view.SheetRow(r), RowY(r), RowH(r), firstCol, lastCol, rowHeadW, header: false, dip, covered);
         DrawActive(dc, view, rowHeadW, pinnedArea: false);
         dc.Pop();
 
         // --- Pinned rows: the header (and a report title above it) stay on top ---
         if (pinned > 0)
         {
-            dc.PushClip(new RectangleGeometry(new Rect(rowHeadW, headH, Math.Max(0, width - rowHeadW), pinned * rowH)));
-            dc.DrawRectangle(PinnedBrush, null, new Rect(rowHeadW, headH, width - rowHeadW, pinned * rowH));
+            dc.PushClip(new RectangleGeometry(new Rect(rowHeadW, headH, Math.Max(0, width - rowHeadW), pinnedH)));
+            dc.DrawRectangle(PinnedBrush, null, new Rect(rowHeadW, headH, width - rowHeadW, pinnedH));
             DrawSpare(dc, view, -pinned, 0, rowHeadW, width);
+            DrawFills(dc, view, -pinned, 0, firstCol, lastCol, rowHeadW);
             DrawEdited(dc, view, -pinned, 0, firstCol, lastCol, rowHeadW);
             DrawMatches(dc, view, -pinned, 0, firstCol, lastCol, rowHeadW);
             DrawSelection(dc, top, rowHeadW, pinnedArea: true);
             DrawGridLines(dc, firstCol, lastCol, headH, top, -pinned, 0, rowHeadW);
             var coveredPinned = DrawMerges(dc, view, -pinned, 0, firstCol, lastCol, rowHeadW, dip, pinnedArea: true);
             for (int r = -pinned; r < 0; r++)
-                DrawRowText(dc, view, r, view.SheetRow(r), RowY(r), rowH, firstCol, lastCol, rowHeadW, r == -1 ? Bold : Regular, dip, coveredPinned);
+                DrawRowText(dc, view, r, view.SheetRow(r), RowY(r), RowH(r), firstCol, lastCol, rowHeadW, header: r == -1, dip, coveredPinned);
             DrawActive(dc, view, rowHeadW, pinnedArea: true);
             dc.Pop();
             dc.DrawRectangle(StrongLineBrush, null, new Rect(0, top - 1, width, 1));
@@ -469,14 +512,79 @@ internal sealed class TableGrid : FrameworkElement
     private double RowY(int viewRow)
     {
         int pinned = _view?.PinnedRows ?? 0;
-        return viewRow < 0
-            ? HeaderHeight + (viewRow + pinned) * RowHeight
-            : TopOfRows + (viewRow - _firstRow) * RowHeight;
+        if (viewRow < 0)
+        {
+            double y = HeaderHeight;
+            for (int r = -pinned; r < viewRow; r++) y += RowH(r);
+            return y;
+        }
+        if (_topsFirst != _firstRow)
+        {
+            _tops.Clear();
+            _topsFirst = _firstRow;
+        }
+        if (_tops.Count == 0) _tops.Add(TopOfRows);
+        if (viewRow < _firstRow)
+        {
+            // Above the screen (a merged area starting there): only its distance matters, and it is short.
+            double y = _tops[0];
+            for (int r = _firstRow - 1; r >= viewRow && _firstRow - r <= 500; r--) y -= RowH(r);
+            return y - Math.Max(0, _firstRow - viewRow - 500) * RowHeight;
+        }
+        int index = viewRow - _firstRow;
+        // Far below the screen only the usual height is counted.
+        while (_tops.Count <= index && _tops.Count <= 2000) _tops.Add(_tops[^1] + RowH(_firstRow + _tops.Count - 1));
+        return index < _tops.Count ? _tops[index] : _tops[^1] + (index - _tops.Count + 1) * RowHeight;
     }
+
+    /// <summary>Height of a view row on screen: the file's height when it is bigger, or as tall as its wrapped text.</summary>
+    private double RowH(int viewRow)
+    {
+        if (_view is not { } view) return RowHeight;
+        int sheetRow = view.SheetRow(viewRow);
+        if (_heights.TryGetValue(sheetRow, out double known)) return known;
+        var sheet = view.Sheet;
+        double height = RowHeight;
+        var hint = sheet.RowHeight(sheetRow);
+        if (hint is { } h) height = Math.Max(height, Math.Round(h.Points * PixelsPerPoint * _zoom));
+        if (hint is not { Custom: true } && sheet.RowMayWrap(sheetRow)) height = Math.Max(height, WrappedHeight(sheet, sheetRow));
+        height = Math.Min(height, RowHeight * 20);
+        if (height != RowHeight || _heights.Count < 50_000) _heights[sheetRow] = height;
+        return height;
+    }
+
+    /// <summary>How tall a row must be for the wrapped text of its cells (merged cells don't count, like in Excel).</summary>
+    private double WrappedHeight(Sheet sheet, int sheetRow)
+    {
+        double height = 0, pad = Pad;
+        double dip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        int columns = Math.Min(sheet.ColumnCount, _widths.Length);
+        for (int c = 0; c < columns; c++)
+        {
+            var format = sheet.Format(sheetRow, c);
+            if (format.Mode != TextMode.Wrap || sheet.Text(sheetRow, c) is not { } value) continue;
+            if (sheet.Merges.Count > 0 && sheet.Merges.Any(m => m.Contains(sheetRow, c))) continue;
+            double w = _lefts[c + 1] - _lefts[c] - 2 * pad;
+            if (w < 4) continue;
+            var text = new FormattedText(Limit(value), CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Face(format, false),
+                SizeOf(format, sheet), TextBrush, dip) { MaxTextWidth = w };
+            height = Math.Max(height, Math.Ceiling(text.Height + 2 * VPad));
+        }
+        return height;
+    }
+
+    private void ForgetHeights()
+    {
+        _heights.Clear();
+        _tops.Clear();
+        _topsFirst = -1;
+    }
+
+    private double VPad => Math.Round(4 * _zoom);
 
     private void DrawRowNumber(DrawingContext dc, TableView view, int r, int selTop, int selBottom, double rowHeadW, double dip)
     {
-        double y = RowY(r), rowH = RowHeight;
+        double y = RowY(r), rowH = RowH(r);
         if (r >= selTop && r <= selBottom) dc.DrawRectangle(HeaderActiveBrush, null, new Rect(0, y, rowHeadW, rowH));
         int number = view.SheetRow(r) + 1;
         var brush = r == _hoverRow ? TextBrush : number > view.Sheet.DataRowCount ? FaintBrush : SubtleBrush;
@@ -508,7 +616,7 @@ internal sealed class TableGrid : FrameworkElement
         }
         double right = Math.Min(ActualWidth, ColumnX(_widths.Length, rowHeadW));
         for (int r = fromRow; r < toRow; r++)
-            dc.DrawRectangle(LineBrush, null, new Rect(rowHeadW, RowY(r) + RowHeight - 1, Math.Max(0, right - rowHeadW), 1));
+            dc.DrawRectangle(LineBrush, null, new Rect(rowHeadW, RowY(r) + RowH(r) - 1, Math.Max(0, right - rowHeadW), 1));
     }
 
     /// <summary>Spare rows and columns (shown while editing) are darker than the table.</summary>
@@ -517,10 +625,9 @@ internal sealed class TableGrid : FrameworkElement
         var sheet = view.Sheet;
         if (sheet.RowCount == sheet.DataRowCount && sheet.ColumnCount == sheet.DataColumnCount) return;
         double spareX = sheet.DataColumnCount < _widths.Length ? Math.Max(rowHeadW, ColumnX(sheet.DataColumnCount, rowHeadW)) : width;
-        double rowH = RowHeight;
         for (int r = fromRow; r < toRow; r++)
         {
-            double y = RowY(r);
+            double y = RowY(r), rowH = RowH(r);
             if (view.SheetRow(r) >= sheet.DataRowCount) dc.DrawRectangle(SpareBrush, null, new Rect(rowHeadW, y, Math.Max(0, width - rowHeadW), rowH));
             else if (spareX < width) dc.DrawRectangle(SpareBrush, null, new Rect(spareX, y, width - spareX, rowH));
         }
@@ -537,9 +644,11 @@ internal sealed class TableGrid : FrameworkElement
             double y = RowY(r);
             for (int c = firstCol; c <= lastCol; c++)
             {
-                if (!sheet.IsEdited(sheetRow, c)) continue;
+                bool text = sheet.IsEdited(sheetRow, c);
+                if (!text && !sheet.IsFormatEdited(sheetRow, c)) continue;
                 double x = ColumnX(c, rowHeadW), w = _lefts[c + 1] - _lefts[c];
-                dc.DrawRectangle(EditedBrush, null, new Rect(x, y, Math.Max(0, w - 1), RowHeight - 1));
+                // A new look shows itself: only the mark in the corner; changed text is tinted too.
+                if (text) dc.DrawRectangle(EditedBrush, null, new Rect(x, y, Math.Max(0, w - 1), RowH(r) - 1));
                 dc.DrawRectangle(EditedMarkBrush, null, new Rect(x, y, mark, 2));
                 dc.DrawRectangle(EditedMarkBrush, null, new Rect(x, y, 2, mark));
             }
@@ -556,7 +665,7 @@ internal sealed class TableGrid : FrameworkElement
             foreach (int c in columns)
             {
                 if (c < firstCol || c > lastCol) continue;
-                dc.DrawRectangle(MatchBrush, null, new Rect(ColumnX(c, rowHeadW), y, _lefts[c + 1] - _lefts[c] - 1, RowHeight - 1));
+                dc.DrawRectangle(MatchBrush, null, new Rect(ColumnX(c, rowHeadW), y, _lefts[c + 1] - _lefts[c] - 1, RowH(r) - 1));
             }
         }
     }
@@ -574,13 +683,13 @@ internal sealed class TableGrid : FrameworkElement
         {
             if (selTop >= 0) return;
             y1 = RowY(selTop);
-            y2 = selBottom >= 0 ? top : RowY(selBottom) + RowHeight;
+            y2 = selBottom >= 0 ? top : RowY(selBottom) + RowH(selBottom);
         }
         else
         {
             if (selBottom < 0) return;
             y1 = selTop < 0 ? top : RowY(selTop);
-            y2 = RowY(selBottom) + RowHeight;
+            y2 = RowY(selBottom) + RowH(selBottom);
         }
         dc.DrawRectangle(SelectionBrush, SelectionPen, new Rect(x1, y1, Math.Max(0, x2 - x1 - 1), Math.Max(0, y2 - y1 - 1)));
     }
@@ -591,13 +700,13 @@ internal sealed class TableGrid : FrameworkElement
         var (row, column) = _active;
         if ((uint)column >= (uint)_widths.Length || (row < 0) != pinnedArea) return;
         double x1 = ColumnX(column, rowHeadW), x2 = ColumnX(column + 1, rowHeadW);
-        double y1 = RowY(row), y2 = y1 + RowHeight;
+        double y1 = RowY(row), y2 = y1 + RowH(row);
         if (MergeAt(view, row, column) is { } m)
         {
             x1 = ColumnX(m.FromColumn, rowHeadW);
             x2 = ColumnX(Math.Min(m.ToColumn, _widths.Length - 1) + 1, rowHeadW);
             y1 = RowY(view.ViewRow(m.FromRow));
-            y2 = RowY(view.ViewRow(m.ToRow)) + RowHeight;
+            y2 = RowY(view.ViewRow(m.ToRow)) + RowH(view.ViewRow(m.ToRow));
         }
         dc.DrawRectangle(null, ActivePen, new Rect(x1, y1, Math.Max(0, x2 - x1 - 1), Math.Max(0, y2 - y1 - 1)));
     }
@@ -637,14 +746,17 @@ internal sealed class TableGrid : FrameworkElement
                 for (int c = Math.Max(m.FromColumn, firstCol); c <= Math.Min(right, lastCol); c++) covered.Add(CellKey(r, c));
 
             double x1 = ColumnX(m.FromColumn, rowHeadW), x2 = ColumnX(right + 1, rowHeadW);
-            double y1 = RowY(view.ViewRow(m.FromRow)), y2 = RowY(view.ViewRow(m.ToRow)) + RowHeight;
+            int lastView = view.ViewRow(m.ToRow);
+            double y1 = RowY(view.ViewRow(m.FromRow)), y2 = RowY(lastView) + RowH(lastView);
             var rect = new Rect(x1, y1, Math.Max(0, x2 - x1 - 1), Math.Max(0, y2 - y1 - 1));
-            dc.DrawRectangle(pinnedArea ? PinnedBrush : Background, null, rect);
+            var format = view.Sheet.Format(m.FromRow, m.FromColumn);
+            dc.DrawRectangle(format.Fill is { } fill ? BrushOf(fill) : pinnedArea ? PinnedBrush : Background, null, rect);
             if (view.Sheet.Text(m.FromRow, m.FromColumn) is { } value)
             {
-                var text = Text(FirstLine(value, 500), TextBrush, pinnedArea ? Bold : Regular, FontSize, rect.Width - 2 * Pad, TextAlignment.Center, dip);
+                // A merged area the file says nothing about (or a table without formatting) is centered, as a title.
+                if (format.IsPlain) format = format with { Horizontal = HAlign.Center, Vertical = VAlign.Center };
                 dc.PushClip(new RectangleGeometry(rect));
-                dc.DrawText(text, new Point(rect.X + Pad, rect.Y + (rect.Height - text.Height) / 2));
+                DrawCellText(dc, view.Sheet, value, format, number: false, header: pinnedArea, rect.X, rect.Width, rect.Y, rect.Height + 1, dip);
                 dc.Pop();
             }
         }
@@ -652,46 +764,156 @@ internal sealed class TableGrid : FrameworkElement
     }
 
     private void DrawRowText(DrawingContext dc, TableView view, int viewRow, int sheetRow, double y, double rowH, int firstCol, int lastCol,
-        double rowHeadW, Typeface face, double dip, HashSet<long>? covered)
+        double rowHeadW, bool header, double dip, HashSet<long>? covered)
     {
         var sheet = view.Sheet;
-        double pad = Pad;
-        for (int c = firstCol; c <= lastCol; c++)
+        int columns = _widths.Length;
+        // Text shown whole may reach in from cells just off the screen.
+        for (int c = Math.Max(0, firstCol - OverflowColumns); c <= Math.Min(columns - 1, lastCol + OverflowColumns); c++)
         {
             if (covered is not null && covered.Contains(CellKey(sheetRow, c))) continue;
             if (sheet.Text(sheetRow, c) is not { } value) continue;
+            var format = sheet.Format(sheetRow, c);
             bool number = viewRow >= 0 && sheet.TryNumber(sheetRow, c, out _);
-            double x = ColumnX(c, rowHeadW);
-            double w = _lefts[c + 1] - _lefts[c];
-            if (!number)
+            if ((c < firstCol || c > lastCol) && (format.Mode != TextMode.Overflow || number)) continue;
+            int from = c, to = c;
+            if (format.Mode == TextMode.Overflow && !number)
             {
-                // Text spills into empty cells on the right, like in Excel.
-                int next = c + 1;
-                while (next < _widths.Length && next <= c + SpillColumns && sheet.Text(sheetRow, next) is null
-                       && (covered is null || !covered.Contains(CellKey(sheetRow, next))))
+                var align = Align(format, number);
+                bool left = align != TextAlignment.Left, right = align != TextAlignment.Right;
+                int spare = OverflowColumns;
+                // Grows over empty cells; centered text grows both ways.
+                while (spare > 0 && (right || left))
                 {
-                    w += _lefts[next + 1] - _lefts[next];
-                    next++;
+                    if (right && (right = Free(to + 1))) { to++; spare--; }
+                    if (spare > 0 && left && (left = Free(from - 1))) { from--; spare--; }
                 }
             }
-            if (w - 2 * pad < 4) continue;
-            var text = Text(FirstLine(value, 1000), number ? NumberBrush : TextBrush, face, FontSize, w - 2 * pad,
-                number ? TextAlignment.Right : TextAlignment.Left, dip);
-            dc.DrawText(text, new Point(x + pad, y + (rowH - text.Height) / 2));
+            double x = ColumnX(from, rowHeadW), w = _lefts[to + 1] - _lefts[from];
+            DrawCellText(dc, sheet, value, format, number, header, x, w, y, rowH, dip);
+        }
+
+        bool Free(int column) => column >= 0 && column < columns && sheet.Text(sheetRow, column) is null
+                                 && (covered is null || !covered.Contains(CellKey(sheetRow, column)));
+    }
+
+    /// <summary>One cell's text in its box, in its font, color and alignment; cut with "…" or wrapped.</summary>
+    private void DrawCellText(DrawingContext dc, Sheet sheet, string value, CellFormat format, bool number, bool header,
+        double x, double w, double y, double h, double dip)
+    {
+        double pad = Pad;
+        if (w - 2 * pad < 4) return;
+        bool wrap = format.Mode == TextMode.Wrap;
+        var text = new FormattedText(wrap ? Limit(value) : FirstLine(value, 1000), CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+            Face(format, header), SizeOf(format, sheet), Foreground(format, number), dip)
+        {
+            MaxTextWidth = w - 2 * pad,
+            Trimming = TextTrimming.CharacterEllipsis,
+            TextAlignment = Align(format, number),
+        };
+        if (wrap) text.MaxTextHeight = Math.Max(1, h - 2 * VPad);
+        else text.MaxLineCount = 1;
+        if (format.Underline) text.SetTextDecorations(TextDecorations.Underline);
+        double top = format.Vertical switch
+        {
+            VAlign.Top => y + VPad,
+            VAlign.Center => y + (h - text.Height) / 2,
+            // Excel puts text at the bottom; in a row of the usual height that is the middle.
+            _ => h > RowHeight + 0.5 ? y + h - text.Height - VPad : y + (h - text.Height) / 2,
+        };
+        if (wrap) dc.PushClip(new RectangleGeometry(new Rect(x, y, w, h)));
+        dc.DrawText(text, new Point(x + pad, top));
+        if (wrap) dc.Pop();
+    }
+
+    private static TextAlignment Align(CellFormat format, bool number) => format.Horizontal switch
+    {
+        HAlign.Left => TextAlignment.Left,
+        HAlign.Center => TextAlignment.Center,
+        HAlign.Right => TextAlignment.Right,
+        _ => number ? TextAlignment.Right : TextAlignment.Left,
+    };
+
+    /// <summary>Font size on screen: the workbook's usual size is <see cref="BaseFont"/>, others in proportion.</summary>
+    private double SizeOf(CellFormat format, Sheet sheet) =>
+        format.Size > 0 ? Math.Clamp(FontSize * format.Size / sheet.DefaultFontSize, 5 * _zoom, 120 * _zoom) : FontSize;
+
+    private static Typeface Face(CellFormat format, bool header) =>
+        Faces[(format.Bold ? 2 : header ? 1 : 0) + (format.Italic ? 3 : 0)];
+
+    private static Typeface[] MakeFaces()
+    {
+        var family = new FontFamily("Segoe UI Variable Text, Segoe UI");
+        Typeface Make(FontStyle style, FontWeight weight) => new(family, style, weight, FontStretches.Normal);
+        return
+        [
+            Make(FontStyles.Normal, FontWeights.Normal), Make(FontStyles.Normal, FontWeights.SemiBold), Make(FontStyles.Normal, FontWeights.Bold),
+            Make(FontStyles.Italic, FontWeights.Normal), Make(FontStyles.Italic, FontWeights.SemiBold), Make(FontStyles.Italic, FontWeights.Bold),
+        ];
+    }
+
+    /// <summary>
+    /// The text color. The table is dark: black or dark text the file asks for (written for a white sheet) would
+    /// vanish, so a color too close to its background gives way to light or dark text that can be read.
+    /// </summary>
+    private Brush Foreground(CellFormat format, bool number)
+    {
+        uint background = format.Fill ?? 0xFF131210;
+        if (format.Color is { } color && Contrast(color, background) >= 2) return BrushOf(color);
+        if (format.Fill is null) return number ? NumberBrush : TextBrush;
+        return Luminance(background) > 0.35 ? BrushOf(0xFF1A1A1A) : TextBrush;
+    }
+
+    private static double Luminance(uint argb)
+    {
+        static double Linear(uint channel)
+        {
+            double v = channel / 255.0;
+            return v <= 0.03928 ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * Linear(argb >> 16 & 0xFF) + 0.7152 * Linear(argb >> 8 & 0xFF) + 0.0722 * Linear(argb & 0xFF);
+    }
+
+    private static double Contrast(uint a, uint b)
+    {
+        double la = Luminance(a), lb = Luminance(b);
+        return (Math.Max(la, lb) + 0.05) / (Math.Min(la, lb) + 0.05);
+    }
+
+    private SolidColorBrush BrushOf(uint argb)
+    {
+        if (_brushes.TryGetValue(argb, out var brush)) return brush;
+        if (_brushes.Count > 256) _brushes.Clear();
+        return _brushes[argb] = Frozen((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb);
+    }
+
+    /// <summary>Cell fills, under the selection and the grid.</summary>
+    private void DrawFills(DrawingContext dc, TableView view, int fromRow, int toRow, int firstCol, int lastCol, double rowHeadW)
+    {
+        var sheet = view.Sheet;
+        for (int r = fromRow; r < toRow; r++)
+        {
+            int sheetRow = view.SheetRow(r);
+            double y = RowY(r), h = RowH(r);
+            for (int c = firstCol; c <= lastCol; c++)
+            {
+                if (sheet.Format(sheetRow, c).Fill is not { } fill) continue;
+                dc.DrawRectangle(BrushOf(fill), null, new Rect(ColumnX(c, rowHeadW), y, _lefts[c + 1] - _lefts[c], h));
+            }
         }
     }
 
-    private static FormattedText Text(string value, Brush brush, Typeface face, double size, double maxWidth, TextAlignment alignment, double dip)
-    {
-        var text = new FormattedText(value, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, face, size, brush, dip)
+    private static FormattedText Text(string value, Brush brush, Typeface face, double size, double maxWidth, TextAlignment alignment, double dip) =>
+        new(value, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, face, size, brush, dip)
         {
             MaxTextWidth = Math.Max(1, maxWidth),
             MaxLineCount = 1,
             Trimming = TextTrimming.CharacterEllipsis,
             TextAlignment = alignment,
         };
-        return text;
-    }
+
+    /// <summary>Wrapped text is drawn whole, up to a sane length.</summary>
+    private static string Limit(string value) => value.Length <= 3000 ? value : value[..3000] + " …";
 
     /// <summary>A cell shows one line: the rest of a long or multi-line text is in the bar above the table.</summary>
     private static string FirstLine(string value, int max)
@@ -735,8 +957,23 @@ internal sealed class TableGrid : FrameworkElement
             }
             return column >= 0 ? Zone.ColumnHeader : Zone.None;
         }
-        if (_view.PinHeader && p.Y < TopOfRows) row = Math.Min(-1, (int)((p.Y - HeaderHeight) / RowHeight) - _view.PinnedRows);
-        else row = _firstRow + (int)((p.Y - TopOfRows) / RowHeight);
+        if (_view.PinHeader && p.Y < TopOfRows)
+        {
+            row = -1;
+            for (int r = -_view.PinnedRows; r < 0; r++)
+            {
+                if (p.Y < RowY(r) + RowH(r))
+                {
+                    row = r;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            row = _firstRow;
+            while (row < _view.RowCount - 1 && p.Y >= RowY(row) + RowH(row)) row++;
+        }
         if (row >= _view.RowCount) row = _view.RowCount - 1;
         if (p.X < rowHeadW) return Zone.RowHeader;
         return column >= 0 ? Zone.Cell : Zone.None;

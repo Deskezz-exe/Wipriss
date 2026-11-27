@@ -72,7 +72,8 @@
         </Grid>
 
         <!-- The whole text of the active cell: long or multi-line text is easy to read here -->
-        <Border Grid.Row="1" Margin="16,0,16,8" Background="{StaticResource SunkenBrush}" BorderBrush="{StaticResource DividerBrush}"
+        <StackPanel Grid.Row="1" Margin="16,0,16,8">
+        <Border Background="{StaticResource SunkenBrush}" BorderBrush="{StaticResource DividerBrush}"
                 BorderThickness="1" CornerRadius="8">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -91,6 +92,86 @@
                          VerticalScrollBarVisibility="Auto" FontSize="13" />
             </Grid>
         </Border>
+
+        <!-- Formatting of the selected cells (XLSX only; a CSV can't keep it) -->
+        <Grid x:Name="FormatArea" Margin="0,6,0,0" Visibility="Collapsed">
+            <StackPanel x:Name="FormatBar" Orientation="Horizontal">
+                <Button x:Name="FontSmaller" Style="{StaticResource FormatButton}" Content="&#xE8E7;" ToolTip="Текст мельче" Click="FontSmaller_Click" />
+                <Button x:Name="FontSizeButton" Style="{StaticResource TextButton}" Content="11" ToolTip="Размер текста" Click="FontSize_Click" />
+                <Button x:Name="FontBigger" Style="{StaticResource FormatButton}" Content="&#xE8E8;" ToolTip="Текст крупнее" Click="FontBigger_Click" />
+                <Border Width="1" Height="18" Margin="8,0" Background="{StaticResource DividerBrush}" />
+                <ToggleButton x:Name="BoldToggle" Style="{StaticResource FormatToggle}" Content="&#xE8DD;" ToolTip="Жирный   Ctrl+B" Click="Bold_Click" />
+                <ToggleButton x:Name="ItalicToggle" Style="{StaticResource FormatToggle}" Content="&#xE8DB;" ToolTip="Курсив   Ctrl+I" Click="Italic_Click" />
+                <ToggleButton x:Name="UnderlineToggle" Style="{StaticResource FormatToggle}" Content="&#xE8DC;" ToolTip="Подчёркнутый   Ctrl+U" Click="Underline_Click" />
+                <Border Width="1" Height="18" Margin="8,0" Background="{StaticResource DividerBrush}" />
+                <Button x:Name="TextColorButton" Style="{StaticResource FormatButton}" ToolTip="Цвет текста" Click="TextColor_Click">
+                    <Grid Width="16" Height="18">
+                        <TextBlock Text="&#xE8D3;" HorizontalAlignment="Center" VerticalAlignment="Top" />
+                        <Border x:Name="TextColorBar" Height="3" VerticalAlignment="Bottom" CornerRadius="1" Background="{StaticResource TextBrush}" />
+                    </Grid>
+                </Button>
+                <Button x:Name="FillColorButton" Style="{StaticResource FormatButton}" ToolTip="Заливка ячейки" Click="FillColor_Click">
+                    <Grid Width="16" Height="18">
+                        <TextBlock Text="&#xE7E6;" HorizontalAlignment="Center" VerticalAlignment="Top" />
+                        <Border x:Name="FillColorBar" Height="3" VerticalAlignment="Bottom" CornerRadius="1" Background="Transparent"
+                                BorderBrush="{StaticResource LineStrongBrush}" BorderThickness="1" />
+                    </Grid>
+                </Button>
+                <Border Width="1" Height="18" Margin="8,0" Background="{StaticResource DividerBrush}" />
+                <ToggleButton x:Name="AlignLeft" Style="{StaticResource FormatToggle}" Content="&#xE8E4;" ToolTip="По левому краю" Click="Horizontal_Click" />
+                <ToggleButton x:Name="AlignCenter" Style="{StaticResource FormatToggle}" Content="&#xE8E3;" ToolTip="По центру" Click="Horizontal_Click" />
+                <ToggleButton x:Name="AlignRight" Style="{StaticResource FormatToggle}" Content="&#xE8E2;" ToolTip="По правому краю" Click="Horizontal_Click" />
+                <Border Width="1" Height="18" Margin="8,0" Background="{StaticResource DividerBrush}" />
+                <ToggleButton x:Name="AlignTop" Style="{StaticResource FormatToggle}" ToolTip="По верхнему краю" Click="Vertical_Click">
+                    <Canvas Width="14" Height="14">
+                        <Rectangle Canvas.Left="0" Canvas.Top="0" Width="14" Height="1.2" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+                        <Rectangle Canvas.Left="4" Canvas.Top="2.5" Width="6" Height="7.5" RadiusX="1" RadiusY="1"
+                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" StrokeThickness="1.2" />
+                    </Canvas>
+                </ToggleButton>
+                <ToggleButton x:Name="AlignMiddle" Style="{StaticResource FormatToggle}" ToolTip="По середине" Click="Vertical_Click">
+                    <Canvas Width="14" Height="14">
+                        <Rectangle Canvas.Left="0" Canvas.Top="6.5" Width="14" Height="1.2" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+                        <Rectangle Canvas.Left="4" Canvas.Top="3" Width="6" Height="8" RadiusX="1" RadiusY="1"
+                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" StrokeThickness="1.2" />
+                    </Canvas>
+                </ToggleButton>
+                <ToggleButton x:Name="AlignBottom" Style="{StaticResource FormatToggle}" ToolTip="По нижнему краю" Click="Vertical_Click">
+                    <Canvas Width="14" Height="14">
+                        <Rectangle Canvas.Left="0" Canvas.Top="13" Width="14" Height="1.2" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+                        <Rectangle Canvas.Left="4" Canvas.Top="4.5" Width="6" Height="7.5" RadiusX="1" RadiusY="1"
+                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" StrokeThickness="1.2" />
+                    </Canvas>
+                </ToggleButton>
+                <Border Width="1" Height="18" Margin="8,0" Background="{StaticResource DividerBrush}" />
+                <ToggleButton x:Name="MergeToggle" Style="{StaticResource Pill}" Content="Объединить" Click="Merge_Click"
+                              ToolTip="Объединить выделенные ячейки в одну или разъединить объединённые" />
+                <Button x:Name="TextModeButton" Style="{StaticResource TextButton}" Margin="6,0,0,0" Click="TextMode_Click"
+                        FontFamily="{StaticResource UiFont}" FontSize="12.5" ToolTip="Как показывать текст, который не помещается в ячейку">
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem x:Name="ModeClip" Header="Обрезать" InputGestureText="текст с «…»" Click="ModeClip_Click" />
+                            <MenuItem x:Name="ModeWrap" Header="Переносить" InputGestureText="строка выше" Click="ModeWrap_Click" />
+                            <MenuItem x:Name="ModeOverflow" Header="Показывать целиком" InputGestureText="на соседние" Click="ModeOverflow_Click" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
+            </StackPanel>
+            <!-- Over the bar when it can't be used: says why -->
+            <Border x:Name="FormatBlocker" Background="Transparent" Visibility="Collapsed"
+                    ToolTip="В CSV форматирование не хранится. Экспортируйте таблицу в XLSX, чтобы оформить её." />
+        </Grid>
+        </StackPanel>
+
+        <Popup x:Name="ColorPopup" StaysOpen="False" AllowsTransparency="True" Placement="Bottom">
+            <Border Background="#1C1B18" BorderBrush="{StaticResource LineStrongBrush}" BorderThickness="1" CornerRadius="9" Padding="6">
+                <StackPanel>
+                    <Button x:Name="ColorAuto" Style="{StaticResource TextButton}" HorizontalAlignment="Stretch" Click="ColorAuto_Click"
+                            FontFamily="{StaticResource UiFont}" FontSize="12.5" />
+                    <WrapPanel x:Name="Swatches" Width="168" Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+        </Popup>
 
         <!-- The table -->
         <Border Grid.Row="2" Margin="16,0,16,0" BorderBrush="{StaticResource DividerBrush}" BorderThickness="1">
