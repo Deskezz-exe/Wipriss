@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using Wipriss.Cleaner;
 using Wipriss.Core.Modules;
@@ -17,6 +17,11 @@ public sealed class CleanerModule : IModule
     private CleanerWindow? _window;
 
     public ModuleInfo Info { get; } = ModuleCatalog.Get("cleaner");
+
+    public CleanerModule() => Programs = new ProgramsFlow(() => _host?.Dispatcher);
+
+    /// <summary>The «Установленные программы» tab: the list and one removal at a time.</summary>
+    internal ProgramsFlow Programs { get; }
 
     /// <summary>The panel only opens the window.</summary>
     public Size PanelSize => new(320, 120);
@@ -59,6 +64,7 @@ public sealed class CleanerModule : IModule
     public void Stop()
     {
         Cancel();
+        Programs.Cancel();
         _window?.Close();
     }
 
@@ -69,7 +75,12 @@ public sealed class CleanerModule : IModule
         if (_window is null)
         {
             _window = new CleanerWindow(this);
-            _window.Closed += (_, _) => { _window = null; _host?.TrimMemory(); };
+            _window.Closed += (_, _) =>
+            {
+                _window = null;
+                if (Programs.State is FlowState.Idle or FlowState.Done or FlowState.Failed) Programs.Cancel(); // a running removal goes on
+                _host?.TrimMemory();
+            };
         }
         if (!_window.IsVisible) _window.Show();
         if (_window.WindowState == WindowState.Minimized) _window.WindowState = WindowState.Normal;

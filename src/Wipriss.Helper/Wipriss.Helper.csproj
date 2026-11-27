@@ -18,6 +18,15 @@
   <ItemGroup>
     <ProjectReference Include="..\Wipriss.ProcessTools\Wipriss.ProcessTools.csproj" />
     <Compile Include="..\Wipriss.ExplorerMenu\MenuPackage.cs" Link="MenuPackage.cs" />
+    <!-- Removing a program's tails: the same rules the cleaner uses, checked again here. -->
+    <Compile Include="..\Wipriss.Cleaner\Protocol.cs" Link="Cleaner\Protocol.cs" />
+    <Compile Include="..\Wipriss.Cleaner\PathText.cs" Link="Cleaner\PathText.cs" />
+    <Compile Include="..\Wipriss.Cleaner\Places.cs" Link="Cleaner\Places.cs" />
+    <Compile Include="..\Wipriss.Cleaner\Deleter.cs" Link="Cleaner\Deleter.cs" />
+    <Compile Include="..\Wipriss.Cleaner\Verdict.cs" Link="Cleaner\Verdict.cs" />
+    <Compile Include="..\Wipriss.Cleaner\Reg.cs" Link="Cleaner\Reg.cs" />
+    <Compile Include="..\Wipriss.Cleaner\Purge.cs" Link="Cleaner\Purge.cs" />
+    <Compile Include="..\Wipriss.Cleaner\RegFile.cs" Link="Cleaner\RegFile.cs" />
   </ItemGroup>
 
 </Project>

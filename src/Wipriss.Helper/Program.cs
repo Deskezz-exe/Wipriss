@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Wipriss.ExplorerMenu;
 using Wipriss.ProcessTools;
 
@@ -7,7 +7,10 @@ namespace Wipriss.Helper;
 /// <summary>
 /// Wipriss admin helper. Only Wipriss starts it, with one of two fixed commands:
 /// <c>stop PID:STARTTIME [...]</c> (exit code = how many processes stopped), or
-/// <c>menu-add</c>: registers the Explorer-menu package that lies next to this exe (exit code 0 = done).
+/// <c>menu-add</c>: registers the Explorer-menu package that lies next to this exe (exit code 0 = done),
+/// <c>purge FILE</c>: deletes the tails of a removed program listed in a job file in Temp, every line checked
+/// again by the cleaner's rules (exit code = what failed), or <c>restore FOLDER</c>: puts back a registry copy
+/// of HKLM records and tasks, checked the same way.
 /// Any other input is rejected.
 /// </summary>
 internal static class Program
@@ -20,12 +23,15 @@ internal static class Program
         try
         {
             if (args.Length == 1 && args[0] == MenuAdd) return AddMenu();
+            if (args.Length == 2 && args[0] == Wipriss.Cleaner.Purge.HelperCommand) return Wipriss.Cleaner.Purge.HelperMain(args[1]);
+            if (args.Length == 2 && args[0] == Wipriss.Cleaner.Purge.HelperRestore) return Wipriss.Cleaner.RegFile.HelperRestore(args[1]);
             return ElevatedStop.RunHelper(args);
         }
         catch
         {
             // Nothing to log: no user data passes through here. The caller sees "not done".
-            return args.Length == 1 && args[0] == MenuAdd ? MenuFailed : ElevatedStop.InvalidArguments;
+            return args.Length == 1 && args[0] == MenuAdd ? MenuFailed
+                : args.Length == 2 ? Wipriss.Cleaner.Purge.HelperInvalid : ElevatedStop.InvalidArguments;
         }
     }
 

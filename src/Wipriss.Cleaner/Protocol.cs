@@ -14,6 +14,79 @@ public enum CleanCommand
     Scan,
     /// <summary>Search again, then delete the items named in <see cref="CleanRequest.Targets"/>.</summary>
     Delete,
+    /// <summary>List the installed programs (<see cref="CleanReplyKind.Program"/> lines), then Done.</summary>
+    Programs,
+    /// <summary>
+    /// Remove the program <see cref="CleanRequest.ProgramId"/>: snapshot, its own uninstaller (skipped when
+    /// <see cref="CleanRequest.Forced"/>), then the tails. The process stays and waits for the next lines
+    /// (<see cref="Continue"/>, <see cref="Force"/>, <see cref="DeleteTails"/>, <see cref="Quit"/>).
+    /// </summary>
+    Uninstall,
+    /// <summary>Stop waiting for the uninstaller (it closed, but something of it keeps running).</summary>
+    Continue,
+    /// <summary>The uninstaller did not remove the program: remove it by force (folder and records).</summary>
+    Force,
+    /// <summary>Delete the tails named in <see cref="CleanRequest.Targets"/> (by <see cref="TailItem.Id"/>, found again first).</summary>
+    DeleteTails,
+    /// <summary>Put back the registry records saved in <see cref="CleanRequest.BackupDir"/>.</summary>
+    Restore,
+    Quit,
+}
+
+/// <summary>Where the uninstall is now.</summary>
+public enum UninstallStage
+{
+    /// <summary>The program's own uninstaller runs: follow its windows.</summary>
+    Running,
+    /// <summary>The uninstaller finished, but the program is still installed (cancelled or broken).</summary>
+    NotRemoved,
+    /// <summary>The program has no uninstaller that works: only forced removal is possible.</summary>
+    NoUninstaller,
+    /// <summary>The program is gone; the tails are being looked for.</summary>
+    Removed,
+}
+
+/// <summary>What a tail is, and so how it is deleted.</summary>
+public enum TailKind { Folder, File, RegistryKey, RegistryValue, Service, Task }
+
+/// <summary>One installed program (from the uninstall list, or a Microsoft Store app).</summary>
+public sealed class AppEntry
+{
+    /// <summary>«reg:HKLM64:{name}», «reg:HKLM32:{name}», «reg:HKCU:{name}» or «store:{PackageFullName}».</summary>
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string? Publisher { get; set; }
+    public string? Version { get; set; }
+    public DateTime? Installed { get; set; }
+    /// <summary>Bytes; 0 when unknown.</summary>
+    public long Size { get; set; }
+    /// <summary>A file to take the icon from (an .exe/.ico, or a Store .png) and its index in it.</summary>
+    public string? IconPath { get; set; }
+    public int IconIndex { get; set; }
+    public bool Store { get; set; }
+    /// <summary>False: no uninstaller is registered, only forced removal.</summary>
+    public bool HasUninstaller { get; set; }
+}
+
+/// <summary>Something the removed program left: a folder, a file, a registry key or value, a service, a task.</summary>
+public sealed class TailItem
+{
+    /// <summary>Stable: kind and place («F|C:\Program Files\Foo», «K|HKLM64|SOFTWARE\Foo»).</summary>
+    public string Id { get; set; } = "";
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public TailKind Kind { get; set; }
+    /// <summary>What to show: the path, «HKCU\Software\Foo», «Служба Foo».</summary>
+    public string Title { get; set; } = "";
+    public long Size { get; set; }
+    public int Files { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public CleanColor Color { get; set; }
+    /// <summary>Why it is thought to be the program's.</summary>
+    public List<string> Evidence { get; set; } = [];
+    /// <summary>Only with administrator rights (asked once, through UAC).</summary>
+    public bool NeedsAdmin { get; set; }
+    /// <summary>A folder's sub-folders and files, each deletable on its own.</summary>
+    public List<TailItem> Children { get; set; } = [];
 }
 
 public enum CleanReplyKind
@@ -27,6 +100,17 @@ public enum CleanReplyKind
     /// <summary>Delete finished: <see cref="CleanReply.Bytes"/> freed, <see cref="CleanReply.Count"/> files could not be deleted.</summary>
     Deleted,
     Error,
+    /// <summary>One installed program: <see cref="CleanReply.Program"/>.</summary>
+    Program,
+    /// <summary>Uninstall moved on: <see cref="CleanReply.Stage"/>.</summary>
+    Stage,
+    /// <summary>What the removed program left: <see cref="CleanReply.Tails"/>. The process waits for DeleteTails or Quit.</summary>
+    Tails,
+    /// <summary>Tails deleted: <see cref="CleanReply.Bytes"/> freed, <see cref="CleanReply.Count"/> not deleted,
+    /// <see cref="CleanReply.BackupDir"/>. The process exits.</summary>
+    TailsDeleted,
+    /// <summary>Restore finished: <see cref="CleanReply.Count"/> files that could not be put back.</summary>
+    Restored,
 }
 
 /// <summary>
@@ -116,8 +200,17 @@ public sealed class CleanRequest
     /// <summary>Paths the owner asked never to show (with everything under them).</summary>
     public List<string> Hidden { get; set; } = [];
 
-    /// <summary>Delete: which items.</summary>
+    /// <summary>Delete: which items. DeleteTails: <see cref="CleanTarget.Title"/> is a <see cref="TailItem.Id"/>.</summary>
     public List<CleanTarget> Targets { get; set; } = [];
+
+    /// <summary>Uninstall: which program (<see cref="AppEntry.Id"/>).</summary>
+    public string? ProgramId { get; set; }
+
+    /// <summary>Uninstall: skip the program's own uninstaller (it has none or it is broken).</summary>
+    public bool Forced { get; set; }
+
+    /// <summary>Uninstall: the folder for registry copies (a new sub-folder per removal). Restore: that sub-folder.</summary>
+    public string? BackupDir { get; set; }
 }
 
 /// <summary>An item named by its group id and title (not by its paths).</summary>
@@ -136,6 +229,11 @@ public sealed class CleanReply
     public CleanGroup? Group { get; set; }
     public long Bytes { get; set; }
     public int Count { get; set; }
+    public AppEntry? Program { get; set; }
+    public UninstallStage Stage { get; set; }
+    public List<TailItem>? Tails { get; set; }
+    /// <summary>TailsDeleted: the sub-folder with the registry copy (null when no registry record was deleted).</summary>
+    public string? BackupDir { get; set; }
 }
 
 [JsonSourceGenerationOptions(UseStringEnumConverter = true,

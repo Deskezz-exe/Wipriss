@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -24,6 +24,9 @@ internal sealed class Inventory
     public List<InstalledProgram> Programs { get; } = [];
     public List<UsedPath> Used { get; } = [];
 
+    /// <summary>Paths of installed programs themselves (uninstall records, Store packages, games), with the program.</summary>
+    public List<(string Path, InstalledProgram Program)> ProgramPaths { get; } = [];
+
     /// <summary>Store package families (Name_PublisherId), lower case.</summary>
     public HashSet<string> StoreFamilies { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -33,11 +36,12 @@ internal sealed class Inventory
     /// <summary>Roots too wide to count as proof (an install location of «C:\» or the user profile).</summary>
     private readonly HashSet<string> _tooWide = new(StringComparer.OrdinalIgnoreCase);
 
-    public static Inventory Take()
+    /// <param name="skipUninstall">An uninstall record to leave out («HKLM64:{name}»): the program being removed by force.</param>
+    public static Inventory Take(string? skipUninstall = null)
     {
         var inventory = new Inventory();
         inventory.FillTooWide();
-        inventory.ReadUninstall();
+        inventory.ReadUninstall(skipUninstall);
         inventory.ReadStore();
         inventory.ReadServices();
         inventory.ReadProcesses();
@@ -68,7 +72,7 @@ internal sealed class Inventory
         return null;
     }
 
-    internal void Add(string? path, string reason)
+    internal void Add(string? path, string reason, InstalledProgram? program = null)
     {
         var normal = PathText.Normalize(path);
         if (normal is null || _tooWide.Contains(normal)) return;
@@ -76,6 +80,7 @@ internal sealed class Inventory
         if (Path.HasExtension(normal) && !Directory.Exists(normal)) normal = Path.GetDirectoryName(normal);
         if (normal is null || normal.Length <= 3 || _tooWide.Contains(normal)) return;
         Used.Add(new UsedPath(normal, reason));
+        if (program is not null) ProgramPaths.Add((normal, program));
     }
 
     private void FillTooWide()
@@ -106,7 +111,7 @@ internal sealed class Inventory
         foreach (var drive in DriveInfo.GetDrives()) _tooWide.Add(drive.Name.TrimEnd('\\'));
     }
 
-    private void ReadUninstall()
+    private void ReadUninstall(string? skip)
     {
         const string key = @"Software\Microsoft\Windows\CurrentVersion\Uninstall";
         int read = 0;
@@ -122,19 +127,22 @@ internal sealed class Inventory
                 using var list = root.OpenSubKey(key);
                 if (list is null) continue;
                 read++;
+                var code = new RegRoot(hive, view).Code;
                 foreach (var name in list.GetSubKeyNames())
                 {
+                    if (skip is not null && skip == code + ":" + name) continue;
                     using var app = SafeOpen(list, name);
                     if (app is null) continue;
                     var display = app.GetValue("DisplayName") as string;
                     if (string.IsNullOrWhiteSpace(display)) continue;
                     var publisher = app.GetValue("Publisher") as string;
-                    Programs.Add(new InstalledProgram(display.Trim(), publisher?.Trim(), PathText.NameKey(display), PathText.NameKey(publisher)));
+                    var program = new InstalledProgram(display.Trim(), publisher?.Trim(), PathText.NameKey(display), PathText.NameKey(publisher));
+                    Programs.Add(program);
                     var reason = $"Установлена программа «{display.Trim()}»";
-                    Add(app.GetValue("InstallLocation") as string, reason);
-                    Add(PathText.ExePath(app.GetValue("DisplayIcon") as string is { } icon ? icon.Split(',')[0] : null), reason);
-                    Add(PathText.ExePath(app.GetValue("UninstallString") as string), reason);
-                    Add(PathText.ExePath(app.GetValue("QuietUninstallString") as string), reason);
+                    Add(app.GetValue("InstallLocation") as string, reason, program);
+                    Add(PathText.ExePath(app.GetValue("DisplayIcon") as string is { } icon ? icon.Split(',')[0] : null), reason, program);
+                    Add(PathText.ExePath(app.GetValue("UninstallString") as string), reason, program);
+                    Add(PathText.ExePath(app.GetValue("QuietUninstallString") as string), reason, program);
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
@@ -157,9 +165,9 @@ internal sealed class Inventory
                 StoreFamilies.Add(parts[0] + "_" + parts[^1]);
                 using var package = SafeOpen(list, fullName);
                 var display = package?.GetValue("DisplayName") as string;
-                if (!string.IsNullOrWhiteSpace(display) && !display.StartsWith('@'))
-                    Programs.Add(new InstalledProgram(display, null, PathText.NameKey(display), ""));
-                Add(package?.GetValue("PackageRootFolder") as string, "Установлено приложение из Microsoft Store");
+                var app = new InstalledProgram(!string.IsNullOrWhiteSpace(display) && !display.StartsWith('@') ? display : parts[0], null, PathText.NameKey(display), "");
+                if (!string.IsNullOrWhiteSpace(display) && !display.StartsWith('@')) Programs.Add(app);
+                Add(package?.GetValue("PackageRootFolder") as string, "Установлено приложение из Microsoft Store", app);
             }
             StoreComplete = StoreFamilies.Count > 0;
         }
@@ -346,6 +354,8 @@ internal sealed class Inventory
                     {
                         var game = doc.RootElement.TryGetProperty("DisplayName", out var dn) ? dn.GetString() : null;
                         AddFolder(location.GetString(), $"Установлена игра Epic Games «{game}»");
+                        if (PathText.Normalize(location.GetString()) is { } where && !string.IsNullOrWhiteSpace(game))
+                            ProgramPaths.Add((where, new InstalledProgram(game, "Epic Games", PathText.NameKey(game), "epicgames")));
                         if (!string.IsNullOrWhiteSpace(game))
                             Programs.Add(new InstalledProgram(game, "Epic Games", PathText.NameKey(game), "epicgames"));
                     }

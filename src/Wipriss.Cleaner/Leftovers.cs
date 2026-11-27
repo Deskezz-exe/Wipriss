@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 
 namespace Wipriss.Cleaner;
@@ -14,7 +14,7 @@ internal static class Leftovers
 {
     private sealed record Root(string Path, LeftoverPlace Place, string Label, string[] Skip);
 
-    private static readonly string[] AppDataSkip =
+    internal static readonly string[] AppDataSkip =
     [
         "Microsoft", "Packages", "Temp", "Programs", "Comms", "ConnectedDevicesPlatform", "CrashDumps", "D3DSCache", "VirtualStore",
         "PeerDistRepub", "PlaceholderTileLogoFolder", "Publishers", "Application Data", "History", "Temporary Internet Files",

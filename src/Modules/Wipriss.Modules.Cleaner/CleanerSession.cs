@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -24,6 +24,13 @@ internal sealed class CleanerSession
 
     /// <summary>Delete finished: bytes freed, files that could not be deleted.</summary>
     public event Action<long, int>? Deleted;
+
+    public event Action<AppEntry>? ProgramFound;
+    public event Action<UninstallStage, string?>? StageChanged;
+    public event Action<List<TailItem>>? TailsFound;
+    /// <summary>Tails deleted: bytes freed, what could not be deleted, the registry copy folder.</summary>
+    public event Action<long, int, string?>? TailsDeleted;
+    public event Action<int>? Restored;
 
     /// <summary>The work ended: null = it finished, otherwise what went wrong.</summary>
     public event Action<string?>? Finished;
@@ -54,6 +61,14 @@ internal sealed class CleanerSession
         process.StandardInput.WriteLine(JsonSerializer.Serialize(request, CleanJson.Default.CleanRequest));
         _ = session.ReadAsync();
         return session;
+    }
+
+    /// <summary>The next step of an uninstall (the scanner waits for it).</summary>
+    public void Send(CleanRequest request)
+    {
+        if (_cancelled) return;
+        try { _process.StandardInput.WriteLine(JsonSerializer.Serialize(request, CleanJson.Default.CleanRequest)); }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException) { }
     }
 
     public void Cancel()
@@ -94,7 +109,24 @@ internal sealed class CleanerSession
                         Post(() => Deleted?.Invoke(reply.Bytes, reply.Count));
                         break;
                     case CleanReplyKind.Error:
-                        error = "Поиск прервался из-за ошибки";
+                        error = reply.Text is { Length: > 0 } text && !text.Contains("Exception") && text != "bad request" ? text : "Поиск прервался из-за ошибки";
+                        break;
+                    case CleanReplyKind.Program when reply.Program is { } program:
+                        Post(() => ProgramFound?.Invoke(program));
+                        break;
+                    case CleanReplyKind.Stage:
+                        Post(() => StageChanged?.Invoke(reply.Stage, reply.Text));
+                        break;
+                    case CleanReplyKind.Tails:
+                        Post(() => TailsFound?.Invoke(reply.Tails ?? []));
+                        break;
+                    case CleanReplyKind.TailsDeleted:
+                        error = null;
+                        Post(() => TailsDeleted?.Invoke(reply.Bytes, reply.Count, reply.BackupDir));
+                        break;
+                    case CleanReplyKind.Restored:
+                        error = null;
+                        Post(() => Restored?.Invoke(reply.Count));
                         break;
                 }
             }

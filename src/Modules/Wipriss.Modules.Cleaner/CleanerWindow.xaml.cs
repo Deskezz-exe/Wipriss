@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -55,12 +55,14 @@ public partial class CleanerWindow : Window
         SectionList.ItemsSource = _sections;
         _module.Changed += Refresh;
         Closed += (_, _) => _module.Changed -= Refresh;
-        Loaded += (_, _) => Refresh();
+        InitPrograms();
+        Loaded += (_, _) => { Refresh(); UpdateDisk(); };
         KeyDown += (_, e) =>
         {
             if (e.Key != Key.Escape) return;
             ConfirmBox.Visibility = Visibility.Collapsed;
             SelectAllBox.Visibility = Visibility.Collapsed;
+            EscapePrograms();
         };
 
     }
@@ -77,8 +79,8 @@ public partial class CleanerWindow : Window
     {
         bool busy = _module.Busy;
         var results = _module.Results;
-        IntroBox.Visibility = !busy && results is null ? Visibility.Visible : Visibility.Collapsed;
-        ProgressBox.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+        IntroBox.Visibility = !busy && results is null && !_programsMode ? Visibility.Visible : Visibility.Collapsed;
+        ProgressBox.Visibility = busy && !_programsMode ? Visibility.Visible : Visibility.Collapsed;
         CancelButton.Visibility = _module.Deleting ? Visibility.Collapsed : Visibility.Visible; // a deletion is not cut in half
         ErrorText.Text = _module.LastError ?? "";
         ErrorText.Visibility = _module.LastError is null ? Visibility.Collapsed : Visibility.Visible;
@@ -129,6 +131,7 @@ public partial class CleanerWindow : Window
         }
         foreach (var section in _sections)
         {
+            section.Scanned = true;
             // In the order the section names them (models and leftovers before projects).
             section.Rows = section.Categories.Select(k => _categories.FirstOrDefault(c => c.Category == k)).OfType<CategoryRow>().ToList();
             section.Refresh();
@@ -253,7 +256,13 @@ public partial class CleanerWindow : Window
 
     private void Section_Checked(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is not SectionRow section || section == _section) return;
+        if ((sender as FrameworkElement)?.DataContext is not SectionRow section) return;
+        if (_programsMode)
+        {
+            LeavePrograms();
+            Refresh();
+        }
+        if (section == _section) { ShowSection(); return; }
         _section.IsSelected = false;
         _section = section;
         _section.IsSelected = true;

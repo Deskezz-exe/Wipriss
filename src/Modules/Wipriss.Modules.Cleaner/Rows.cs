@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
@@ -217,15 +217,18 @@ public sealed class SectionRow : Row
 
     internal List<CategoryRow> Rows { get; set; } = [];
 
+    /// <summary>False before the first search: nothing to say yet.</summary>
+    internal bool Scanned { get; set; }
+
     private IEnumerable<ItemRow> Items => Rows.SelectMany(c => c.Groups).SelectMany(g => g.Items);
 
-    public string SizeText => Sizes.Format(Items.Where(i => i.Item.Size > 0).Sum(i => i.Item.Size));
+    public string SizeText => !Scanned ? "" : Sizes.Format(Items.Where(i => i.Item.Size > 0).Sum(i => i.Item.Size));
     public string GreenText
     {
         get
         {
             long green = Items.Where(i => i.Item.Color == CleanColor.Green && i.CanSelect && i.Item.Size > 0).Sum(i => i.Item.Size);
-            return Rows.Count == 0 ? "ничего не найдено" : green > 0 ? $"можно удалить {Sizes.Format(green)}" : "можно удалить: ничего";
+            return !Scanned ? "" : Rows.Count == 0 ? "ничего не найдено" : green > 0 ? $"можно удалить {Sizes.Format(green)}" : "можно удалить: ничего";
         }
     }
 
