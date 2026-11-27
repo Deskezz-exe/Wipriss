@@ -20,6 +20,8 @@ internal sealed class MemorySheet : Sheet
 
     public override IReadOnlyList<CellRange> Merges => _merges;
 
+    public override bool NumbersFromText => false;
+
     /// <summary>Adds a row. <paramref name="numbers"/> holds NaN where a cell is not a number; null if none is.</summary>
     public void AddRow(string?[] texts, double[]? numbers)
     {

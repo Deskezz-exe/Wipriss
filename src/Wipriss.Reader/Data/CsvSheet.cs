@@ -44,6 +44,21 @@ internal sealed class CsvSheet : Sheet, IDisposable
     /// <summary>True when the file had a quote that never closed and was read as plain text instead.</summary>
     public bool QuotesIgnored => !_quotes;
 
+    /// <summary>Where the rows begin: after the byte order mark and the "sep=" line.</summary>
+    public long DataStart => _start;
+
+    public string FilePath => _file.Name;
+
+    /// <summary>The bytes of a row in the file, with its line break.</summary>
+    public (long Start, long End) RowBytes(int row)
+    {
+        lock (_gate)
+        {
+            if ((uint)row >= (uint)_count) return (_end, _end);
+            return (_rows[row], row + 1 < _count ? _rows[row + 1] : _end);
+        }
+    }
+
     /// <summary>Finds the start of every row. Runs once, on a background thread, before the sheet is shown.</summary>
     public void Index(IProgress<long>? progress, CancellationToken cancel)
     {

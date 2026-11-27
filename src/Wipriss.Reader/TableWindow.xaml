@@ -45,6 +45,15 @@
                 <ToggleButton x:Name="HeaderToggle" Style="{StaticResource Pill}" Content="Шапка" Margin="6,0,0,0"
                               ToolTip="Закрепить первую строку: она остаётся сверху при прокрутке"
                               Checked="HeaderToggle_Changed" Unchecked="HeaderToggle_Changed" />
+                <Button x:Name="SaveButton" Style="{StaticResource PrimaryButton}" Content="Сохранить" Margin="6,0,0,0"
+                        Visibility="Collapsed" Click="Save_Click"
+                        ToolTip="Записать изменения в этот же файл   Ctrl+S">
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Отменить все изменения" Click="Discard_Click" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
 
                 <Border Width="1" Height="20" Margin="10,0" Background="{StaticResource DividerBrush}" />
 
@@ -57,8 +66,8 @@
 
                 <Button Style="{StaticResource IconButton}" Content="&#xE72C;" ToolTip="Перечитать файл   F5" Click="Reload_Click" />
                 <Button Style="{StaticResource IconButton}" Content="&#xE8E5;" ToolTip="Открыть другую таблицу   Ctrl+O" Click="Open_Click" />
-                <Button x:Name="FullScreenButton" Style="{StaticResource IconButton}" Content="&#xE740;" ToolTip="Во весь экран   F11"
-                        Click="FullScreen_Click" />
+                <Button x:Name="ExportButton" Style="{StaticResource IconButton}" Content="&#xEDE1;" Click="Export_Click"
+                        ToolTip="Экспорт: сохранить таблицу как XLSX или CSV под другим именем или в другую папку" />
             </StackPanel>
         </Grid>
 
@@ -74,7 +83,9 @@
                 <TextBlock x:Name="CellAddress" Margin="12,0,10,0" VerticalAlignment="Center" FontFamily="{StaticResource SmallFont}"
                            FontSize="12" Foreground="{StaticResource AccentBrush}" />
                 <Border Grid.Column="1" Width="1" Margin="0,6" Background="{StaticResource DividerBrush}" />
-                <TextBox x:Name="CellText" Grid.Column="2" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                <TextBox x:Name="CellText" Grid.Column="2" IsReadOnly="True"
+                         PreviewKeyDown="CellText_PreviewKeyDown" GotKeyboardFocus="CellText_GotKeyboardFocus"
+                         LostKeyboardFocus="CellText_LostKeyboardFocus" TextWrapping="Wrap" AcceptsReturn="True"
                          Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextBrush}"
                          CaretBrush="{StaticResource TextBrush}" SelectionBrush="#6F8F78" Padding="10,7" MaxHeight="110"
                          VerticalScrollBarVisibility="Auto" FontSize="13" />
@@ -97,6 +108,9 @@
                         <ContextMenu Opened="TableMenu_Opened">
                             <MenuItem x:Name="MenuCopy" Header="Копировать" InputGestureText="Ctrl+C" Click="Copy_Click" />
                             <MenuItem Header="Копировать строку целиком" Click="CopyRow_Click" />
+                            <MenuItem x:Name="MenuPaste" Header="Вставить" InputGestureText="Ctrl+V" Click="Paste_Click" />
+                            <MenuItem x:Name="MenuClear" Header="Очистить" InputGestureText="Delete" Click="Clear_Click" />
+                            <MenuItem x:Name="MenuUndo" Header="Отменить" InputGestureText="Ctrl+Z" Click="Undo_Click" />
                             <Separator />
                             <MenuItem x:Name="MenuSortUp" Header="Сортировать по возрастанию" Click="SortUp_Click" />
                             <MenuItem x:Name="MenuSortDown" Header="Сортировать по убыванию" Click="SortDown_Click" />
@@ -106,6 +120,24 @@
                         </ContextMenu>
                     </view:TableGrid.ContextMenu>
                 </view:TableGrid>
+                <!-- The cell being edited: a text box right over it -->
+                <Canvas x:Name="EditLayer" ClipToBounds="True">
+                    <TextBox x:Name="CellEditor" Visibility="Collapsed" Background="#1E1D1A" Foreground="{StaticResource TextBrush}"
+                             CaretBrush="{StaticResource TextBrush}" SelectionBrush="#6F8F78" BorderBrush="{StaticResource AccentBrush}"
+                             BorderThickness="2" Padding="4,0" VerticalContentAlignment="Center" AcceptsReturn="False"
+                             PreviewKeyDown="CellEditor_PreviewKeyDown" LostKeyboardFocus="CellEditor_LostKeyboardFocus"
+                             TextChanged="CellEditor_TextChanged">
+                        <TextBox.Template>
+                            <ControlTemplate TargetType="TextBox">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}">
+                                    <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="Center"
+                                                  HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
+                                </Border>
+                            </ControlTemplate>
+                        </TextBox.Template>
+                    </TextBox>
+                </Canvas>
                 <ScrollBar x:Name="VScroll" Grid.Column="1" Style="{StaticResource VScroll}" Minimum="0" SmallChange="3"
                            Scroll="VScroll_Scroll" />
                 <ScrollBar x:Name="HScroll" Grid.Row="1" Style="{StaticResource HScroll}" Minimum="0" SmallChange="60"
@@ -143,9 +175,9 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock x:Name="SelectionInfo" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,12,0" />
                 <Button x:Name="EncodingButton" Style="{StaticResource PlainButton}" Visibility="Collapsed" Click="EncodingButton_Click"
-                        ToolTip="Если вместо букв странные знаки, выберите другую кодировку" />
+                        ToolTip="Кодировку Wipriss определяет сам. Меняйте её, только если вместо букв видны странные знаки" />
                 <Button x:Name="DelimiterButton" Style="{StaticResource PlainButton}" Visibility="Collapsed" Margin="6,0,0,0"
-                        Click="DelimiterButton_Click" ToolTip="Чем разделены столбцы в файле" />
+                        Click="DelimiterButton_Click" ToolTip="Чем разделены столбцы в этом CSV. Wipriss определяет это сам; другой вариант нужен, только если столбцы слиплись в один" />
             </StackPanel>
         </Grid>
     </Grid>

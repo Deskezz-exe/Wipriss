@@ -27,6 +27,13 @@ internal sealed class Workbook : IDisposable
 
     public CsvSettings? Csv { get; }
 
+    /// <summary>For CSV: where the rows begin (after the byte order mark and the "sep=" line).</summary>
+    public long CsvDataStart { get; init; }
+
+    /// <summary>Changes can be saved back only to these formats; the others are shown read-only.</summary>
+    public bool CanEdit => Format == TableFormat.Csv
+        || System.IO.Path.GetExtension(Path).ToLowerInvariant() is ".xlsx" or ".xlsm";
+
     /// <summary>Kinds of files the viewer opens, by extension.</summary>
     public static readonly IReadOnlyDictionary<string, TableFormat> Extensions =
         new Dictionary<string, TableFormat>(StringComparer.OrdinalIgnoreCase)
@@ -61,12 +68,15 @@ internal sealed class Workbook : IDisposable
             // Unknown extension: a text table is the only safe guess (it is read as plain text).
             format = TableFormat.Csv;
         }
-        return format switch
+        var book = format switch
         {
             TableFormat.Excel => ExcelLoader.Load(path, progress, cancel),
             TableFormat.OpenDocument => OdsLoader.Load(path, progress, cancel),
             _ => CsvLoader.Load(path, csv, progress, cancel),
         };
+        if (!book.CanEdit) return book;
+        // Every sheet gets a layer for the owner's changes; until they edit, it only passes the file through.
+        return new Workbook(path, book.Format, [.. book.Sheets.Select(s => new EditedSheet(s))], book.Csv) { CsvDataStart = book.CsvDataStart };
     }
 
     public void Dispose()

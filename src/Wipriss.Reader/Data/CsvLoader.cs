@@ -32,6 +32,7 @@ internal static class CsvLoader
         var settings = new CsvSettings(encoding, delimiter);
         string name = Path.GetFileNameWithoutExtension(path);
 
+        long start = bom + encoding.GetByteCount(text.AsSpan(0, sepLength));
         if (encoding is UnicodeEncoding or UTF32Encoding)
         {
             var sheet = new MemorySheet(name);
@@ -52,10 +53,9 @@ internal static class CsvLoader
                 if ((++rows & 0x3FF) == 0) progress?.Report(rows);
             }
             sheet.TrimEnd();
-            return new Workbook(path, TableFormat.Csv, [new NumberedSheet(sheet)], settings);
+            return new Workbook(path, TableFormat.Csv, [new NumberedSheet(sheet)], settings) { CsvDataStart = start };
         }
 
-        long start = bom + encoding.GetByteCount(text.AsSpan(0, sepLength));
         var csv = new CsvSheet(name, path, encoding, delimiter, start);
         try
         {
@@ -66,7 +66,7 @@ internal static class CsvLoader
             csv.Dispose();
             throw;
         }
-        return new Workbook(path, TableFormat.Csv, [csv], settings);
+        return new Workbook(path, TableFormat.Csv, [csv], settings) { CsvDataStart = start };
     }
 
     /// <summary>A text table in memory: numbers are read from the text, like in <see cref="CsvSheet"/>.</summary>

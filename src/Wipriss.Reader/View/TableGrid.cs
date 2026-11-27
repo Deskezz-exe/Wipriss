@@ -31,6 +31,12 @@ internal sealed class TableGrid : FrameworkElement
     private static readonly Brush AccentBrush = Frozen(0xA6, 0xBE, 0xAB);
     private static readonly Brush SelectionBrush = Frozen(0x33, 0xA6, 0xBE, 0xAB);
     private static readonly Brush MatchBrush = Frozen(0x4A, 0x3E, 0x20);
+    /// <summary>Spare rows and columns while editing: darker, they are not part of the table yet.</summary>
+    private static readonly Brush SpareBrush = Frozen(0x0E, 0x0D, 0x0C);
+    private static readonly Brush FaintBrush = Frozen(0x5C, 0x59, 0x53);
+    /// <summary>Cells changed and not saved yet.</summary>
+    private static readonly Brush EditedBrush = Frozen(0x3A, 0xE0, 0xA8, 0x4A);
+    private static readonly Brush EditedMarkBrush = Frozen(0xE0, 0xA8, 0x4A);
     private static readonly Pen ActivePen = FrozenPen(AccentBrush, 2);
     private static readonly Pen SelectionPen = FrozenPen(Frozen(0x80, 0xA6, 0xBE, 0xAB), 1);
 
@@ -77,6 +83,15 @@ internal sealed class TableGrid : FrameworkElement
     public event EventHandler<int>? HeaderClicked;
 
     public event EventHandler? ZoomChanged;
+
+    /// <summary>F2, a double click or typing on a cell: start editing it (with the typed text, or null to keep its text).</summary>
+    public event EventHandler<string?>? EditRequested;
+
+    /// <summary>Delete on the selection.</summary>
+    public event EventHandler? ClearRequested;
+
+    /// <summary>The owner may change cells: typing starts editing.</summary>
+    public bool CanEdit { get; set; }
 
     public TableView? View => _view;
 
@@ -150,6 +165,41 @@ internal sealed class TableGrid : FrameworkElement
     }
 
     public void Refresh() => InvalidateVisual();
+
+    /// <summary>After the sheet grew or shrank (spare columns shown, a new column filled): new columns get a width.</summary>
+    public void SyncColumns()
+    {
+        if (_view is null) return;
+        int columns = _view.ColumnCount;
+        if (columns != _widths.Length)
+        {
+            int old = _widths.Length;
+            Array.Resize(ref _widths, columns);
+            for (int c = old; c < columns; c++) _widths[c] = 96;
+            UpdateLefts();
+        }
+        int lastRow = Math.Max(0, _view.RowCount - 1), lastColumn = Math.Max(0, columns - 1);
+        _active = (Math.Min(_active.Row, lastRow), Math.Min(_active.Column, lastColumn));
+        _anchor = (Math.Min(_anchor.Row, lastRow), Math.Min(_anchor.Column, lastColumn));
+        ClampScroll();
+        InvalidateVisual();
+        Scrolled?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Where a cell is drawn, in this element's coordinates (null when it is scrolled away).</summary>
+    public Rect? CellRect(int viewRow, int column)
+    {
+        if (_view is null || (uint)column >= (uint)_widths.Length) return null;
+        if (viewRow >= 0 && (viewRow < _firstRow || viewRow >= _firstRow + VisibleRows + 1)) return null;
+        double rowHeadW = RowHeaderWidth;
+        double x = ColumnX(column, rowHeadW), w = _lefts[column + 1] - _lefts[column];
+        double y = RowY(viewRow);
+        double left = Math.Max(x, rowHeadW);
+        if (x + w <= rowHeadW || left >= ActualWidth) return null;
+        return new Rect(left, y, Math.Max(24, Math.Min(x + w, ActualWidth) - left), RowHeight);
+    }
+
+    public double CellFontSize => FontSize;
 
     public void ScrollToRow(double row)
     {
@@ -359,6 +409,8 @@ internal sealed class TableGrid : FrameworkElement
             Brush? fill = r == _hoverRow ? HoverBrush : (r & 1) == 1 ? StripeBrush : null;
             if (fill is not null) dc.DrawRectangle(fill, null, new Rect(rowHeadW, RowY(r), width - rowHeadW, rowH));
         }
+        DrawSpare(dc, view, _firstRow, lastRow, rowHeadW, width);
+        DrawEdited(dc, view, _firstRow, lastRow, firstCol, lastCol, rowHeadW);
         DrawMatches(dc, view, _firstRow, lastRow, firstCol, lastCol, rowHeadW);
         DrawSelection(dc, top, rowHeadW, pinnedArea: false);
         DrawGridLines(dc, firstCol, lastCol, top, Math.Min(height, RowY(lastRow)), _firstRow, lastRow, rowHeadW);
@@ -373,6 +425,8 @@ internal sealed class TableGrid : FrameworkElement
         {
             dc.PushClip(new RectangleGeometry(new Rect(rowHeadW, headH, Math.Max(0, width - rowHeadW), pinned * rowH)));
             dc.DrawRectangle(PinnedBrush, null, new Rect(rowHeadW, headH, width - rowHeadW, pinned * rowH));
+            DrawSpare(dc, view, -pinned, 0, rowHeadW, width);
+            DrawEdited(dc, view, -pinned, 0, firstCol, lastCol, rowHeadW);
             DrawMatches(dc, view, -pinned, 0, firstCol, lastCol, rowHeadW);
             DrawSelection(dc, top, rowHeadW, pinnedArea: true);
             DrawGridLines(dc, firstCol, lastCol, headH, top, -pinned, 0, rowHeadW);
@@ -395,7 +449,7 @@ internal sealed class TableGrid : FrameworkElement
             if (c >= selLeft && c <= selRight) dc.DrawRectangle(HeaderActiveBrush, null, new Rect(x, 0, w, headH));
             string label = Sheet.ColumnName(c);
             if (view.SortColumn == c) label += view.SortDescending ? "  ▼" : "  ▲";
-            var text = Text(label, view.SortColumn == c ? AccentBrush : SubtleBrush, Regular, FontSize * 0.92, w - 4, TextAlignment.Center, dip);
+            var text = Text(label, view.SortColumn == c ? AccentBrush : c >= view.Sheet.DataColumnCount ? FaintBrush : SubtleBrush, Regular, FontSize * 0.92, w - 4, TextAlignment.Center, dip);
             dc.DrawText(text, new Point(x + 2, (headH - text.Height) / 2));
             dc.DrawRectangle(LineBrush, null, new Rect(x + w - 1, 0, 1, headH));
         }
@@ -425,7 +479,8 @@ internal sealed class TableGrid : FrameworkElement
         double y = RowY(r), rowH = RowHeight;
         if (r >= selTop && r <= selBottom) dc.DrawRectangle(HeaderActiveBrush, null, new Rect(0, y, rowHeadW, rowH));
         int number = view.SheetRow(r) + 1;
-        var text = Text(number.ToString(CultureInfo.InvariantCulture), r == _hoverRow ? TextBrush : SubtleBrush, r == -1 ? Bold : Regular,
+        var brush = r == _hoverRow ? TextBrush : number > view.Sheet.DataRowCount ? FaintBrush : SubtleBrush;
+        var text = Text(number.ToString(CultureInfo.InvariantCulture), brush, r == -1 ? Bold : Regular,
             FontSize * 0.88, rowHeadW - Pad, TextAlignment.Right, dip);
         dc.DrawText(text, new Point(Pad / 2, y + (rowH - text.Height) / 2));
     }
@@ -454,6 +509,41 @@ internal sealed class TableGrid : FrameworkElement
         double right = Math.Min(ActualWidth, ColumnX(_widths.Length, rowHeadW));
         for (int r = fromRow; r < toRow; r++)
             dc.DrawRectangle(LineBrush, null, new Rect(rowHeadW, RowY(r) + RowHeight - 1, Math.Max(0, right - rowHeadW), 1));
+    }
+
+    /// <summary>Spare rows and columns (shown while editing) are darker than the table.</summary>
+    private void DrawSpare(DrawingContext dc, TableView view, int fromRow, int toRow, double rowHeadW, double width)
+    {
+        var sheet = view.Sheet;
+        if (sheet.RowCount == sheet.DataRowCount && sheet.ColumnCount == sheet.DataColumnCount) return;
+        double spareX = sheet.DataColumnCount < _widths.Length ? Math.Max(rowHeadW, ColumnX(sheet.DataColumnCount, rowHeadW)) : width;
+        double rowH = RowHeight;
+        for (int r = fromRow; r < toRow; r++)
+        {
+            double y = RowY(r);
+            if (view.SheetRow(r) >= sheet.DataRowCount) dc.DrawRectangle(SpareBrush, null, new Rect(rowHeadW, y, Math.Max(0, width - rowHeadW), rowH));
+            else if (spareX < width) dc.DrawRectangle(SpareBrush, null, new Rect(spareX, y, width - spareX, rowH));
+        }
+    }
+
+    /// <summary>Changed cells are tinted, with a mark in the corner, until they are saved.</summary>
+    private void DrawEdited(DrawingContext dc, TableView view, int fromRow, int toRow, int firstCol, int lastCol, double rowHeadW)
+    {
+        if (view.Sheet is not EditedSheet { ChangeCount: > 0 } sheet) return;
+        double mark = Math.Max(4, Math.Round(5 * _zoom));
+        for (int r = fromRow; r < toRow; r++)
+        {
+            int sheetRow = view.SheetRow(r);
+            double y = RowY(r);
+            for (int c = firstCol; c <= lastCol; c++)
+            {
+                if (!sheet.IsEdited(sheetRow, c)) continue;
+                double x = ColumnX(c, rowHeadW), w = _lefts[c + 1] - _lefts[c];
+                dc.DrawRectangle(EditedBrush, null, new Rect(x, y, Math.Max(0, w - 1), RowHeight - 1));
+                dc.DrawRectangle(EditedMarkBrush, null, new Rect(x, y, mark, 2));
+                dc.DrawRectangle(EditedMarkBrush, null, new Rect(x, y, 2, mark));
+            }
+        }
     }
 
     private void DrawMatches(DrawingContext dc, TableView view, int fromRow, int toRow, int firstCol, int lastCol, double rowHeadW)
@@ -684,6 +774,10 @@ internal sealed class TableGrid : FrameworkElement
                 InvalidateVisual();
                 ActiveCellChanged?.Invoke(this, EventArgs.Empty);
                 break;
+            case Zone.Cell when row >= -_view.PinnedRows && e.ClickCount == 2 && CanEdit:
+                Select(row, column);
+                EditRequested?.Invoke(this, null);
+                break;
             case Zone.Cell when row >= -_view.PinnedRows:
                 Select(row, column, shift);
                 _selecting = true;
@@ -793,8 +887,23 @@ internal sealed class TableGrid : FrameworkElement
             case Key.OemPlus or Key.Add when ctrl: Zoom += 0.1; break;
             case Key.OemMinus or Key.Subtract when ctrl: Zoom -= 0.1; break;
             case Key.D0 or Key.NumPad0 when ctrl: Zoom = 1; break;
+            case Key.F2 when CanEdit: EditRequested?.Invoke(this, null); break;
+            case Key.Delete when CanEdit: ClearRequested?.Invoke(this, EventArgs.Empty); break;
+            case Key.Back when CanEdit: Select(row, column); EditRequested?.Invoke(this, ""); break;
             default: return;
         }
+        e.Handled = true;
+    }
+
+    /// <summary>Typing on a cell starts editing it with the typed letter, like in Excel.</summary>
+    protected override void OnTextInput(TextCompositionEventArgs e)
+    {
+        base.OnTextInput(e);
+        if (!CanEdit || _view is null || string.IsNullOrEmpty(e.Text) || char.IsControl(e.Text[0])) return;
+        if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt)) == ModifierKeys.Control) return;
+        var (row, column) = _active;
+        Select(row, column);
+        EditRequested?.Invoke(this, e.Text);
         e.Handled = true;
     }
 

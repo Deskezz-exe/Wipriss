@@ -45,14 +45,23 @@ public partial class TableWindow : Window
         Table.Scrolled += (_, _) => SyncScrollBars();
         Table.ActiveCellChanged += (_, _) => ShowActiveCell();
         Table.HeaderClicked += (_, column) => SortByHeader(column);
-        Table.ZoomChanged += (_, _) => ZoomText.Content = $"{Table.Zoom * 100:0}%";
+        Table.ZoomChanged += (_, _) =>
+        {
+            ZoomText.Content = $"{Table.Zoom * 100:0}%";
+            FollowEditor();
+        };
+        Table.Scrolled += (_, _) => FollowEditor();
+        Table.EditRequested += (_, typed) => BeginEdit(typed);
+        Table.ClearRequested += (_, _) => ClearSelection();
         PreviewKeyDown += Window_PreviewKeyDown;
+        Closing += Window_Closing;
         Loaded += (_, _) => _ = LoadAsync(null);
         Closed += (_, _) =>
         {
             _load?.Cancel();
             _work?.Cancel();
             _search?.Cancel();
+            _locks?.Cancel();
             _searchDelay?.Stop();
             _book?.Dispose();
             _book = null;
@@ -76,8 +85,10 @@ public partial class TableWindow : Window
 
     // ---- Opening ----
 
-    private async Task LoadAsync(CsvSettings? csv)
+    private async Task LoadAsync(CsvSettings? csv, (int FirstRow, int Row, int Column)? keep = null)
     {
+        if (!MayDropChanges("Перечитать файл")) return;
+        CancelEdit();
         _load?.Cancel();
         _work?.Cancel();
         _search?.Cancel();
@@ -112,14 +123,27 @@ public partial class TableWindow : Window
 
         var old = _book;
         bool sameFile = old is not null && string.Equals(old.Path, book.Path, StringComparison.OrdinalIgnoreCase);
+        _view = null; // the old view's sheet is about to be closed
         _book = book;
         old?.Dispose();
         _headerChoice.Clear();
+        // Wipriss can save XLSX and CSV back: those open ready for typing, with spare rows and columns.
+        bool editing = book.CanEdit;
+        foreach (var sheet in book.Sheets.OfType<EditedSheet>()) sheet.Editing = editing;
+        _editing = editing;
+        Table.CanEdit = editing;
         BuildTabs();
         int index = sameFile && _sheetIndex < book.Sheets.Count ? _sheetIndex : FirstVisibleSheet(book);
         HideOverlay();
         ShowSheet(index);
         UpdateCsvButtons();
+        UpdateSaveButton();
+        if (editing && book.Format == TableFormat.Excel) _ = FindLocksAsync(book);
+        if (keep is { } at)
+        {
+            Table.Select(at.Row, at.Column);
+            Table.ScrollToRow(at.FirstRow);
+        }
         Table.Focus();
     }
 
@@ -141,6 +165,7 @@ public partial class TableWindow : Window
         TabsTrack.Visibility = Visibility.Collapsed;
         EncodingButton.Visibility = DelimiterButton.Visibility = Visibility.Collapsed;
         FileInfo.Text = "";
+        SetEditing(false);
         var (title, text) = Describe(ex);
         ShowOverlay(title, text, buttons: true);
     }
@@ -206,6 +231,7 @@ public partial class TableWindow : Window
     private void ShowSheet(int index)
     {
         if (_book is not { } book || (uint)index >= (uint)book.Sheets.Count) return;
+        Commit();
         _work?.Cancel();
         _search?.Cancel();
         _sheetIndex = index;
@@ -231,11 +257,12 @@ public partial class TableWindow : Window
     {
         if (_view is not { } view || _book is not { } book) return;
         var sheet = view.Sheet;
+        int rows = sheet.DataRowCount;
         var parts = new List<string>
         {
-            RuText.Count(sheet.RowCount, "строка", "строки", "строк").Replace(sheet.RowCount.ToString(CultureInfo.InvariantCulture),
-                sheet.RowCount.ToString("N0", CultureInfo.CurrentCulture)),
-            RuText.Count(sheet.ColumnCount, "столбец", "столбца", "столбцов"),
+            RuText.Count(rows, "строка", "строки", "строк").Replace(rows.ToString(CultureInfo.InvariantCulture),
+                rows.ToString("N0", CultureInfo.CurrentCulture)),
+            RuText.Count(sheet.DataColumnCount, "столбец", "столбца", "столбцов"),
         };
         parts.Add(book.Format switch
         {
@@ -245,7 +272,7 @@ public partial class TableWindow : Window
         });
         if (view.OnlyMatches) parts.Add($"показано {view.RowCount.ToString("N0", CultureInfo.CurrentCulture)}");
         if (view.SortColumn >= 0) parts.Add($"сортировка по {Sheet.ColumnName(view.SortColumn)}");
-        if (sheet is CsvSheet { QuotesIgnored: true }) parts.Add("кавычки не закрыты, прочитано как простой текст");
+        if (Source(sheet) is CsvSheet { QuotesIgnored: true }) parts.Add("кавычки не закрыты, прочитано как простой текст");
         if (sheet.Hidden) parts.Add("скрытый лист");
         FileInfo.Text = string.Join("  ·  ", parts);
     }
@@ -261,6 +288,7 @@ public partial class TableWindow : Window
     private void HeaderToggle_Changed(object sender, RoutedEventArgs e)
     {
         if (_syncing || _view is not { } old) return;
+        Commit();
         // On: the guessed rows down to the header (at least the first row); off: none.
         int pinned = HeaderToggle.IsChecked == true ? Math.Max(1, TableView.GuessPinnedRows(old.Sheet)) : 0;
         _headerChoice[old.Sheet] = pinned;
@@ -497,8 +525,13 @@ public partial class TableWindow : Window
         var (row, column) = Table.Active;
         int sheetRow = view.SheetRow(row);
         CellAddress.Text = Sheet.ColumnName(column) + (sheetRow + 1).ToString(CultureInfo.InvariantCulture);
-        CellText.Text = view.Sheet.Text(sheetRow, column) ?? "";
-        CellText.ScrollToHome();
+        if (_editCell is null && _barCell is null)
+        {
+            var (targetRow, targetColumn) = _editing ? Target(row, column) : (sheetRow, column);
+            CellText.Text = view.Sheet.Text(targetRow, targetColumn) ?? "";
+            CellText.IsReadOnly = !_editing || Edited?.LockReason(targetRow, targetColumn) is not null;
+            CellText.ScrollToHome();
+        }
         SelectionInfo.Text = SelectionStats(view);
     }
 
@@ -581,6 +614,9 @@ public partial class TableWindow : Window
         MenuCopy.IsEnabled = ready;
         MenuSortUp.IsEnabled = MenuSortDown.IsEnabled = ready;
         MenuSortOff.IsEnabled = _view?.SortColumn >= 0;
+        var editing = _editing ? Visibility.Visible : Visibility.Collapsed;
+        MenuPaste.Visibility = MenuClear.Visibility = MenuUndo.Visibility = editing;
+        MenuUndo.IsEnabled = Edited?.CanUndo == true;
         string column = ready ? Sheet.ColumnName(Table.Active.Column) : "";
         MenuSortUp.Header = $"Сортировать {column} по возрастанию";
         MenuSortDown.Header = $"Сортировать {column} по убыванию";
@@ -621,8 +657,6 @@ public partial class TableWindow : Window
 
     private void ZoomReset_Click(object sender, RoutedEventArgs e) => Table.Zoom = 1;
 
-    private void FullScreen_Click(object sender, RoutedEventArgs e) => ToggleFullScreen();
-
     private void ToggleFullScreen()
     {
         if (!_fullScreen)
@@ -635,8 +669,6 @@ public partial class TableWindow : Window
             ResizeMode = ResizeMode.NoResize;
             if (WindowState == WindowState.Maximized) WindowState = WindowState.Normal;
             WindowState = WindowState.Maximized;
-            FullScreenButton.Content = "";
-            FullScreenButton.ToolTip = "Выйти из полноэкранного режима   F11 или Esc";
             _fullScreen = true;
         }
         else
@@ -645,8 +677,6 @@ public partial class TableWindow : Window
             ResizeMode = _savedResize;
             WindowState = WindowState.Normal;
             WindowState = _savedState;
-            FullScreenButton.Content = "";
-            FullScreenButton.ToolTip = "Во весь экран   F11";
             _fullScreen = false;
         }
         Table.Focus();
@@ -713,7 +743,8 @@ public partial class TableWindow : Window
             return;
         }
         EncodingButton.Content = $"Кодировка: {EncodingName(csv.Encoding)}";
-        DelimiterButton.Content = $"Разделитель: {CsvFormat.DelimiterName(csv.Delimiter)}";
+        DelimiterButton.Content = $"Разделитель: {CsvFormat.DelimiterName(csv.Delimiter)}"
+                                  + (csv.Delimiter is ';' or ',' ? $" «{csv.Delimiter}»" : "");
         EncodingButton.Visibility = DelimiterButton.Visibility = Visibility.Visible;
     }
 
@@ -741,16 +772,39 @@ public partial class TableWindow : Window
         menu.IsOpen = true;
     }
 
+    /// <summary>The widest of the first rows when the file is split by <paramref name="delimiter"/>.</summary>
+    private static int ColumnsWith(Workbook book, char delimiter)
+    {
+        if (book.Csv is not { } csv) return 0;
+        try
+        {
+            using var file = Workbook.OpenShared(book.Path);
+            file.Position = Math.Min(book.CsvDataStart, file.Length);
+            var bytes = new byte[(int)Math.Min(64 * 1024, file.Length - file.Position)];
+            file.ReadExactly(bytes);
+            using var reader = new StringReader(csv.Encoding.GetString(bytes));
+            return CsvFormat.ReadRows(reader, delimiter).Take(50).Select(r => r.Length).DefaultIfEmpty(0).Max();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
+    }
+
     private void DelimiterButton_Click(object sender, RoutedEventArgs e)
     {
         if (_book?.Csv is not { } csv) return;
         var menu = new ContextMenu { PlacementTarget = DelimiterButton, Placement = PlacementMode.Top };
         foreach (char delimiter in CsvFormat.Delimiters)
         {
+            // How many columns the file would have with this delimiter: the right one is plain to see.
+            int columns = ColumnsWith(_book, delimiter);
             var item = new MenuItem
             {
-                Header = CsvFormat.DelimiterName(delimiter) + (delimiter is ';' or ',' or '|' ? $"   {delimiter}" : ""),
+                Header = CsvFormat.DelimiterName(delimiter) + (delimiter is ';' or ',' ? $"  «{delimiter}»" : "")
+                         + "  —  " + RuText.Count(columns, "столбец", "столбца", "столбцов"),
                 IsChecked = csv.Delimiter == delimiter,
+                IsEnabled = columns > 1 || csv.Delimiter == delimiter,
             };
             item.Click += (_, _) => _ = LoadAsync(csv with { Delimiter = delimiter });
             menu.Items.Add(item);
@@ -779,7 +833,7 @@ public partial class TableWindow : Window
             case Key.F11:
                 ToggleFullScreen();
                 break;
-            case Key.Escape when _fullScreen:
+            case Key.Escape when _fullScreen && _editCell is null:
                 ToggleFullScreen();
                 break;
             case Key.O when ctrl:
@@ -790,6 +844,18 @@ public partial class TableWindow : Window
                 break;
             case Key.C when ctrl && Table.IsKeyboardFocused:
                 CopySelection();
+                break;
+            case Key.S when ctrl && _book?.CanEdit == true:
+                _ = SaveAsync(copy: shift);
+                break;
+            case Key.V when ctrl && _editing && Table.IsKeyboardFocused:
+                Paste();
+                break;
+            case Key.Z when ctrl && _editing && Table.IsKeyboardFocused:
+                UndoRedo(undo: !shift);
+                break;
+            case Key.Y when ctrl && _editing && Table.IsKeyboardFocused:
+                UndoRedo(undo: false);
                 break;
             default:
                 return;

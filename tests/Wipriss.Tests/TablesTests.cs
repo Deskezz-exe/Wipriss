@@ -103,7 +103,7 @@ public class TablesTests : IDisposable
         Assert.Equal(TableFormat.Csv, book.Format);
         Assert.Equal(1251, book.Csv!.Encoding.CodePage);
         Assert.Equal(';', book.Csv.Delimiter);
-        var sheet = Assert.IsType<CsvSheet>(Assert.Single(book.Sheets));
+        var sheet = Assert.IsType<CsvSheet>(Assert.IsType<EditedSheet>(Assert.Single(book.Sheets)).Inner);
         Assert.Equal(5, sheet.RowCount); // header, 1, 2, empty line, 3
         Assert.Equal(3, sheet.ColumnCount);
         Assert.Equal("Город", sheet.Text(0, 1));
@@ -125,7 +125,7 @@ public class TablesTests : IDisposable
     {
         string path = WriteFile("broken.csv", Encoding.UTF8.GetBytes("a,b\n\"oops,1\n2,3\n4,5\n"));
         using var book = Workbook.Load(path, null, null, CancellationToken.None);
-        var sheet = Assert.IsType<CsvSheet>(book.Sheets[0]);
+        var sheet = Assert.IsType<CsvSheet>(Assert.IsType<EditedSheet>(book.Sheets[0]).Inner);
         Assert.True(sheet.QuotesIgnored);
         Assert.Equal(4, sheet.RowCount);
         Assert.Equal("4", sheet.Text(3, 0));

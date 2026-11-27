@@ -33,6 +33,21 @@ internal abstract class Sheet
     /// <summary>The number behind a cell (also dates, as OLE automation dates), for alignment and sorting.</summary>
     public abstract bool TryNumber(int row, int column, out double value);
 
+    /// <summary>Rows that hold the table; the rest (up to <see cref="RowCount"/>) are spare rows shown for typing.</summary>
+    public virtual int DataRowCount => RowCount;
+
+    /// <summary>Columns that hold the table; the rest are spare columns shown for typing.</summary>
+    public virtual int DataColumnCount => ColumnCount;
+
+    /// <summary>A cell changed by the owner and not saved yet.</summary>
+    public virtual bool IsEdited(int row, int column) => false;
+
+    /// <summary>
+    /// True when <see cref="TryNumber"/> only parses <see cref="Text"/> (a text table): sorting then reads numbers
+    /// from the streamed rows instead of asking cell by cell.
+    /// </summary>
+    public virtual bool NumbersFromText => true;
+
     public virtual IReadOnlyList<CellRange> Merges => [];
 
     /// <summary>Column width saved in the file, in characters, or null.</summary>

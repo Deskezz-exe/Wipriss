@@ -111,7 +111,7 @@ internal sealed class TableView
         {
             var numbers = new double[rows];
             var texts = new string?[rows];
-            bool numbersInText = Sheet is not MemorySheet;
+            bool numbersInText = Sheet.NumbersFromText;
             int r = 0;
             foreach (var row in Sheet.Rows(cancel))
             {
@@ -161,6 +161,24 @@ internal sealed class TableView
         SortDescending = descending;
         OnlyMatches = onlyMatches;
         _order = order;
+        _orderRows = Sheet.RowCount;
+    }
+
+    private int _orderRows;
+
+    /// <summary>
+    /// After the sheet grew or shrank (typing into spare rows, editing on or off): a sorted order keeps its rows,
+    /// drops the ones that are gone and shows the new ones at the end. A search filter shows no new rows.
+    /// </summary>
+    public void SyncRows()
+    {
+        if (_order is not { } order) return;
+        int rows = Sheet.RowCount;
+        if (rows == _orderRows) return;
+        if (rows < _orderRows) order = Array.FindAll(order, r => r < rows);
+        else if (!OnlyMatches) order = [.. order, .. Enumerable.Range(_orderRows, rows - _orderRows)];
+        _order = order;
+        _orderRows = rows;
     }
 
     public void SetMatches(Dictionary<int, int[]>? matches, int count)
