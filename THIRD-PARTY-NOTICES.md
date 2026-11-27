@@ -48,8 +48,10 @@ The speech model is **not** shipped with the app and not stored in this reposito
 | Model | Author | License | Link |
 |---|---|---|---|
 | GigaAM v3 (RNN-T, with punctuation), ONNX export by the sherpa-onnx authors | GigaChat Team (Salute Developers) | MIT | https://github.com/salute-developers/GigaAM |
+| Moonshine Base (English), int8 ONNX export by the sherpa-onnx authors | Useful Sensors | MIT | https://github.com/usefulsensors/moonshine |
+| Whisper Small (multilingual), int8 ONNX export by the sherpa-onnx authors | OpenAI | MIT | https://github.com/openai/whisper |
 
-The model's license file is downloaded with it and lies next to it.
+The models are downloaded only when the user picks one; where the model repository has a license file, it is downloaded with it and lies next to it.
 
 The microphone is recorded with Windows' own waveIn API, without a library.
 

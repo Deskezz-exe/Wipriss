@@ -81,14 +81,14 @@ internal sealed class VoiceEngine : IDisposable
     }
 
     /// <summary>Downloads the model in a separate engine process; <paramref name="progress"/> runs on the caller's thread.</summary>
-    public static async Task<VoiceError> DownloadAsync(string modelsDir, Action<int> progress, CancellationToken cancel)
+    public static async Task<VoiceError> DownloadAsync(string modelsDir, string model, Action<int> progress, CancellationToken cancel)
     {
         using var process = Launch();
         try { process.PriorityClass = ProcessPriorityClass.BelowNormal; } catch (Exception) { }
         using var stop = cancel.Register(() => { try { process.Kill(entireProcessTree: true); } catch (Exception) { } });
 
         await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(
-            new VoiceRequest { Command = VoiceCommand.Download, ModelsDir = modelsDir }, VoiceJson.Default.VoiceRequest));
+            new VoiceRequest { Command = VoiceCommand.Download, ModelsDir = modelsDir, Model = model }, VoiceJson.Default.VoiceRequest));
         process.StandardInput.Close();
 
         var result = VoiceError.EngineFailed;

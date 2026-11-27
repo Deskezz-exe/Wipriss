@@ -24,6 +24,8 @@ public partial class App : Application
         new("reader", () => new Wipriss.Modules.Tables.TablesModule()),
         new("dictation", () => new Wipriss.Modules.Voice.VoiceModule()),
         new("cleaner", () => new Wipriss.Modules.Cleaner.CleanerModule()),
+        new("agents", () => new Wipriss.Modules.Agents.AgentsModule()),
+        new("media", () => new Wipriss.Modules.Media.MediaModule()),
     ];
 
     private SingleInstance? _instance;
@@ -33,6 +35,7 @@ public partial class App : Application
     private TrayIcon? _tray;
     private SettingsWindow? _settings;
     private FlyoutWindow? _flyout;
+    private HotkeyService? _hotkeys;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -62,6 +65,10 @@ public partial class App : Application
         _island.SettingsRequested += ShowSettings;
         _island.ModuleRequested += OpenPanel;
         _island.Show();
+
+        _hotkeys = new HotkeyService(_island.Handle, _store);
+        _hotkeys.Pressed += OpenPanel;
+        _island.HotkeyHandler = _hotkeys.Handle;
 
         _tray = new TrayIcon("Wipriss");
         _tray.LeftClick += ShowSettings;
@@ -161,7 +168,7 @@ public partial class App : Application
 
         if (_settings is null)
         {
-            _settings = new SettingsWindow(_store, _modules);
+            _settings = new SettingsWindow(_store, _modules, _hotkeys!);
             _settings.ExitRequested += ExitApp;
             _settings.MoveFolderRequested += MoveDataFolder;
             _settings.Closed += (_, _) =>
@@ -189,6 +196,7 @@ public partial class App : Application
 
         _flyout?.Close();
         _settings?.Close();
+        _hotkeys?.Dispose();
         _island?.Close();
         _tray?.Dispose();
         _instance?.Dispose(); // release single-instance first, so the new copy can start
@@ -209,6 +217,7 @@ public partial class App : Application
         _flyout?.Close();
         _settings?.Close();
         _modules?.StopAll();
+        _hotkeys?.Dispose();
         _island?.Close();
         _tray?.Dispose();
         _instance?.Dispose();

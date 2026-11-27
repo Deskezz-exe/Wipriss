@@ -8,11 +8,13 @@ namespace Wipriss.Modules.Voice;
 
 /// <summary>
 /// Voice typing. The hotkey opens the microphone, the second press closes it, and the recognized text is
-/// pasted where the cursor is. Speech is recognized offline by Wipriss.Voice.exe; while dictation is off or
-/// the model is not downloaded, nothing runs at all (no hook, no process).
+/// pasted where the cursor is. Speech is recognized offline by Wipriss.Voice.exe; while dictation is off
+/// nothing runs at all (no hook, no process). Without a model the hotkey offers to download one.
 /// </summary>
 public sealed class VoiceModule : IModule
 {
+    private ModelChooserWindow? _chooser;
+
     private enum State { Idle, Starting, Listening, Recognizing }
 
     private IModuleHost? _host;
@@ -29,7 +31,14 @@ public sealed class VoiceModule : IModule
 
     internal VoiceSettings Settings { get; private set; } = new();
 
-    internal ModelStore Model { get; } = ModelStore.GigaAmV3(VoiceEngine.ModelsDir);
+    internal ModelStore Model => ModelStore.For(VoiceEngine.ModelsDir, CurrentModel);
+
+    internal VoiceModel CurrentModel => VoiceModels.Get(Settings.Model);
+
+    /// <summary>Raised when a model is downloaded, chosen or removed.</summary>
+    internal event Action? ModelsChanged;
+
+    internal static bool IsInstalled(VoiceModel model) => ModelStore.For(VoiceEngine.ModelsDir, model).LooksInstalled();
 
     internal bool ModelReady { get; private set; }
 
@@ -62,6 +71,7 @@ public sealed class VoiceModule : IModule
         CloseEngine();
         _pill?.Close();
         _pill = null;
+        _chooser?.Close();
     }
 
     public FrameworkElement CreatePanel(IPanelContext panel) => new VoicePanel(this, panel);
@@ -69,7 +79,7 @@ public sealed class VoiceModule : IModule
     /// <summary>Turns the hook and the engine on or off to match the settings and the model.</summary>
     internal void Apply()
     {
-        bool on = ModelReady && Settings.Enabled;
+        bool on = Settings.Enabled;
         if (!on)
         {
             ReleaseHook();
@@ -85,6 +95,7 @@ public sealed class VoiceModule : IModule
         }
         _hook.Matcher.Keys = Settings.Keys.ToArray();
 
+        if (!ModelReady) { CloseEngine(); return; } // the hotkey shows the model choice
         if (Settings.KeepLoaded) EnsureEngine();
         else _engine?.Send(LoadRequest()); // a running engine takes the new unload time
     }
@@ -111,13 +122,52 @@ public sealed class VoiceModule : IModule
         _captureDone = null;
     }
 
+    /// <summary>Makes a downloaded model the one in use. The engine restarts with it on the next phrase.</summary>
+    internal void SelectModel(VoiceModel model)
+    {
+        if (Settings.Model == model.Id) return;
+        Settings.Model = model.Id;
+        Settings.Save();
+        CloseEngine();
+        ModelReady = Model.LooksInstalled();
+        Apply();
+        ModelsChanged?.Invoke();
+    }
+
+    /// <summary>Removes a model that is not in use (its own folder inside the models folder).</summary>
+    internal bool DeleteModel(VoiceModel model)
+    {
+        if (model.Id == Settings.Model || Download?.Model == model.Id) return false;
+        var folder = ModelStore.For(VoiceEngine.ModelsDir, model).Folder;
+        try
+        {
+            if (System.IO.Directory.Exists(folder)) System.IO.Directory.Delete(folder, recursive: true);
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            ErrorLog.Write(ex);
+            return false;
+        }
+        ModelsChanged?.Invoke();
+        return true;
+    }
+
     internal async Task<VoiceError> DownloadModelAsync(DownloadJob job)
     {
         Download = job;
+        ModelsChanged?.Invoke();
         try
         {
-            var result = await VoiceEngine.DownloadAsync(VoiceEngine.ModelsDir, job.Report, job.Token);
+            var result = await VoiceEngine.DownloadAsync(VoiceEngine.ModelsDir, job.Model, job.Report, job.Token);
             if (job.Token.IsCancellationRequested) return VoiceError.None;
+            var model = VoiceModels.Get(job.Model);
+            // The first model downloaded, or the one picked in the "no model" window, becomes the one in use.
+            if (result == VoiceError.None && IsInstalled(model) && (!ModelReady || job.Use))
+            {
+                Settings.Model = model.Id;
+                Settings.Save();
+                CloseEngine();
+            }
             ModelReady = Model.LooksInstalled();
             if (result == VoiceError.None && ModelReady) Apply();
             return result;
@@ -130,6 +180,7 @@ public sealed class VoiceModule : IModule
         finally
         {
             Download = null;
+            ModelsChanged?.Invoke();
         }
     }
 
@@ -150,6 +201,11 @@ public sealed class VoiceModule : IModule
         switch (_state)
         {
             case State.Idle:
+                if (!ModelReady)
+                {
+                    ShowChooser();
+                    return;
+                }
                 if (!EnsureEngine()) return;
                 _state = State.Starting;
                 Pill().ShowWaiting();
@@ -199,6 +255,7 @@ public sealed class VoiceModule : IModule
     {
         Command = VoiceCommand.Load,
         ModelsDir = VoiceEngine.ModelsDir,
+        Model = Settings.Model,
         IdleMinutes = Settings.KeepLoaded ? 0 : Settings.UnloadMinutes,
     };
 
@@ -262,7 +319,8 @@ public sealed class VoiceModule : IModule
         if (error is VoiceError.ModelMissing or VoiceError.ModelDamaged)
         {
             ModelReady = Model.LooksInstalled();
-            if (!ModelReady) { CloseEngine(); ReleaseHook(); }
+            if (!ModelReady) CloseEngine();
+            ModelsChanged?.Invoke();
         }
         string text = error switch
         {
@@ -288,6 +346,16 @@ public sealed class VoiceModule : IModule
         SetListening(false);
         if (dictating) Pill().ShowMessage("Голосовой ввод перезапустится при следующем нажатии");
         else _host?.TrimMemory();
+    }
+
+    /// <summary>The hotkey was pressed but no model is here yet: offer the choice.</summary>
+    private void ShowChooser()
+    {
+        if (_chooser is not null) { _chooser.Activate(); return; }
+        _chooser = new ModelChooserWindow(this);
+        _chooser.Closed += (_, _) => { _chooser = null; _host?.TrimMemory(); };
+        _chooser.Show();
+        _chooser.Activate();
     }
 
     private void SetListening(bool on)
@@ -327,8 +395,14 @@ public sealed class VoiceModule : IModule
 }
 
 /// <summary>A running model download that a reopened panel can show again.</summary>
-internal sealed class DownloadJob
+internal sealed class DownloadJob(string model, bool use = false)
 {
+    /// <summary>Which model is downloading.</summary>
+    public string Model { get; } = model;
+
+    /// <summary>Use this model once it is here (it was picked in the "no model" window).</summary>
+    public bool Use { get; } = use;
+
     private readonly CancellationTokenSource _cancel = new();
 
     public int Percent { get; private set; }

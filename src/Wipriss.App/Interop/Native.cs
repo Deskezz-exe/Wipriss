@@ -19,7 +19,15 @@ internal static class Native
     public const int WM_LBUTTONUP = 0x0202;
     public const int WM_RBUTTONUP = 0x0205;
     public const int WM_DPICHANGED = 0x02E0;
+    public const int WM_HOTKEY = 0x0312;
     public const int WM_APP = 0x8000;
+    public const int MOD_NOREPEAT = 0x4000;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int vk);
+
+    [DllImport("user32.dll")]
+    public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
     public const int NIM_ADD = 0, NIM_MODIFY = 1, NIM_DELETE = 2;
     public const int NIF_MESSAGE = 0x1, NIF_ICON = 0x2, NIF_TIP = 0x4;

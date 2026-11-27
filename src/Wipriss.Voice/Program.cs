@@ -76,7 +76,7 @@ internal static class Program
 
     private static int Download(VoiceRequest request)
     {
-        var model = OpenStore(request.ModelsDir);
+        var model = OpenStore(request.ModelsDir, request.Model);
         if (model is null) { Fail(VoiceError.BadRequest); return 2; }
         using var handler = new SocketsHttpHandler
         {
@@ -106,11 +106,11 @@ internal static class Program
             _idleMinutes = Math.Clamp(request.IdleMinutes, 0, 24 * 60);
             if (_recognizer is null)
             {
-                var model = OpenStore(request.ModelsDir);
+                var model = OpenStore(request.ModelsDir, request.Model);
                 if (model is null) { Fail(VoiceError.BadRequest); return; }
                 var check = model.Verify();
                 if (check != VoiceError.None) { Fail(check); return; }
-                try { _recognizer = new SpeechRecognizer(model); }
+                try { _recognizer = new SpeechRecognizer(model, VoiceModels.Get(request.Model).Kind); }
                 catch (Exception e) when (e is DllNotFoundException or EntryPointNotFoundException
                                               or BadImageFormatException or SEHException)
                 {
@@ -187,11 +187,11 @@ internal static class Program
     }
 
     /// <summary>The models folder must be a full local path; the model lives in a fixed subfolder of it.</summary>
-    internal static ModelStore? OpenStore(string? modelsDir)
+    internal static ModelStore? OpenStore(string? modelsDir, string? modelId = null)
     {
         if (string.IsNullOrWhiteSpace(modelsDir) || !Path.IsPathFullyQualified(modelsDir)) return null;
         if (modelsDir.StartsWith(@"\\", StringComparison.Ordinal)) return null; // no network shares
-        return ModelStore.GigaAmV3(Path.GetFullPath(modelsDir));
+        return ModelStore.For(Path.GetFullPath(modelsDir), VoiceModels.Get(modelId));
     }
 
     private static void Fail(VoiceError error) => Send(new VoiceReply { Kind = VoiceReplyKind.Error, Error = error });

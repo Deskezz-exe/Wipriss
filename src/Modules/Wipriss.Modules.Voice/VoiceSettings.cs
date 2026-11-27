@@ -18,6 +18,9 @@ public sealed class VoiceSettings
 
     public int UnloadMinutes { get; set; } = 10;
 
+    /// <summary>The chosen speech model (an id from the model list).</summary>
+    public string Model { get; set; } = "gigaam-v3-ru";
+
     public static readonly int[] UnloadChoices = [5, 10, 30, 60];
 
     private static string FilePath => Path.Combine(AppPaths.DataDir, "voice.dat");
@@ -27,6 +30,7 @@ public sealed class VoiceSettings
         var settings = SecureStore.ReadJson(FilePath, VoiceJsonSettings.Default.VoiceSettings) ?? new VoiceSettings();
         if (!HotkeyKeys.IsValid(settings.Keys)) settings.Keys = [.. HotkeyKeys.Default];
         if (!UnloadChoices.Contains(settings.UnloadMinutes)) settings.UnloadMinutes = 10;
+        settings.Enabled = true; // on/off is now the module switch in Settings
         return settings;
     }
 

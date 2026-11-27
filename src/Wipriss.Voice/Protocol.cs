@@ -62,6 +62,9 @@ public sealed class VoiceRequest
     /// <summary>Folder that holds the model folders (Download, Load).</summary>
     public string? ModelsDir { get; set; }
 
+    /// <summary>Which model (Download, Load); null = the default Russian one.</summary>
+    public string? Model { get; set; }
+
     /// <summary>Load: exit after this many minutes without dictation, 0 = stay until quit.</summary>
     public int IdleMinutes { get; set; }
 }

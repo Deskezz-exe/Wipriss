@@ -118,7 +118,7 @@
                 <Button x:Name="ResetTrustButton" DockPanel.Dock="Right" Style="{StaticResource PlainButton}" FontSize="11.5"
                         Click="ResetTrust_Click" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="8,0,0,0" />
                 <TextBlock Style="{StaticResource Caption}" Foreground="{StaticResource FaintTextBrush}"
-                           Text="Объём за сегодня Windows досчитывает примерно раз в час. Соединения и нагрузка на процессор видны сразу." />
+                           Text="Объём за сегодня Windows обновляет раз в час. Соединения и процессор видны сразу." />
             </DockPanel>
         </StackPanel>
 

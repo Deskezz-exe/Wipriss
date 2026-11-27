@@ -2,68 +2,46 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <StackPanel>
-        <!-- The model: download, or the dictation switch once it is here -->
-        <Border Style="{StaticResource Card}" Padding="16,12,16,14">
-            <StackPanel>
-                <StackPanel x:Name="DownloadBox">
-                    <TextBlock Text="Модель распознавания" FontWeight="SemiBold" />
-                    <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" LineHeight="18" TextWrapping="Wrap"
-                               Text="GigaAM v3: русская речь, сразу с точками, запятыми и заглавными буквами. 232 МБ, лицензия MIT. Скачивается один раз, дальше всё работает без интернета." />
-                    <DockPanel Margin="0,12,0,0">
-                        <Button x:Name="DownloadButton" DockPanel.Dock="Left" Style="{StaticResource PrimaryButton}"
-                                Content="Скачать модель" Click="Download_Click" />
-                        <Button x:Name="CancelButton" DockPanel.Dock="Right" Style="{StaticResource PlainButton}"
-                                Content="Отмена" Click="Cancel_Click" Visibility="Collapsed" />
-                        <Grid x:Name="ProgressBox" Margin="0,0,10,0" VerticalAlignment="Center" Visibility="Collapsed">
-                            <Border Height="6" CornerRadius="3" Background="{StaticResource SunkenBrush}" />
-                            <Border x:Name="ProgressFill" Height="6" CornerRadius="3" HorizontalAlignment="Left" Width="0"
-                                    Background="{StaticResource AccentBrush}" />
-                        </Grid>
-                    </DockPanel>
-                    <TextBlock x:Name="DownloadText" Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap" Visibility="Collapsed" />
-                </StackPanel>
-
-                <StackPanel x:Name="ReadyBox" Visibility="Collapsed">
-                    <CheckBox x:Name="EnabledSwitch" Style="{StaticResource ToggleSwitch}" Margin="0,2,0,6" Content="Голосовой ввод по клавише"
-                              Checked="Enabled_Changed" Unchecked="Enabled_Changed" />
-                    <DockPanel Margin="0,2,0,0">
-                        <Ellipse x:Name="StateDot" Width="7" Height="7" Margin="1,5,9,0" VerticalAlignment="Top" />
-                        <TextBlock x:Name="StateText" Style="{StaticResource Caption}" TextWrapping="Wrap" LineHeight="18" />
-                    </DockPanel>
-                </StackPanel>
-            </StackPanel>
-        </Border>
-
-        <TextBlock Text="Клавиша" Style="{StaticResource SectionTitle}" Margin="2,16,0,6" />
-        <Border Style="{StaticResource Card}" Padding="16,10,12,10">
+        <!-- Key -->
+        <TextBlock Text="Клавиша" Style="{StaticResource SectionTitle}" Margin="2,0,0,8" />
+        <Border Style="{StaticResource Card}" Padding="16,12,16,12">
             <StackPanel>
                 <DockPanel>
                     <Button x:Name="ChangeKeyButton" DockPanel.Dock="Right" Style="{StaticResource PlainButton}" Content="Изменить"
-                            Click="ChangeKey_Click" />
-                    <TextBlock x:Name="KeyText" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            VerticalAlignment="Center" Click="ChangeKey_Click" />
+                    <StackPanel Margin="0,0,16,0">
+                        <TextBlock x:Name="KeyText" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock x:Name="KeyHint" Style="{StaticResource Caption}" Margin="0,3,0,0"
+                                   Text="Нажмите — говорите — нажмите ещё раз. Esc отменяет." />
+                    </StackPanel>
                 </DockPanel>
-                <TextBlock x:Name="KeyHint" Style="{StaticResource Caption}" Margin="0,6,0,0" TextWrapping="Wrap" LineHeight="18"
-                           Text="Одна, две или три клавиши вместе, например «Правый Ctrl» или «Ctrl + Alt + Пробел»." />
+                <DockPanel Margin="0,10,0,0">
+                    <Ellipse x:Name="StateDot" Width="7" Height="7" Margin="1,5,9,0" VerticalAlignment="Top" />
+                    <TextBlock x:Name="StateText" Style="{StaticResource Caption}" />
+                </DockPanel>
             </StackPanel>
         </Border>
 
-        <TextBlock Text="Модель в памяти" Style="{StaticResource SectionTitle}" Margin="2,16,0,6" />
+        <!-- Models -->
+        <TextBlock Text="Модель" Style="{StaticResource SectionTitle}" Margin="2,22,0,8" />
+        <ContentControl x:Name="ModelsHost" Focusable="False" />
+        <TextBlock Style="{StaticResource Caption}" Margin="2,2,0,0" Foreground="{StaticResource FaintTextBrush}"
+                   Text="Работают на этом компьютере без интернета. Голос никуда не отправляется." />
+
+        <!-- Memory -->
+        <TextBlock Text="Память" Style="{StaticResource SectionTitle}" Margin="2,22,0,8" />
         <Border Style="{StaticResource SegmentTrack}" HorizontalAlignment="Left">
             <StackPanel Orientation="Horizontal">
-                <RadioButton x:Name="KeepMode" Style="{StaticResource Segment}" GroupName="Memory" Content="Держать всегда" Checked="Memory_Changed" />
-                <RadioButton x:Name="UnloadMode" Style="{StaticResource Segment}" GroupName="Memory" Content="Выгружать при простое" Checked="Memory_Changed" />
+                <RadioButton x:Name="KeepMode" Style="{StaticResource Segment}" GroupName="Memory" Content="Держать в памяти" Checked="Memory_Changed" />
+                <RadioButton x:Name="UnloadMode" Style="{StaticResource Segment}" GroupName="Memory" Content="Выгружать в простое" Checked="Memory_Changed" />
             </StackPanel>
         </Border>
         <StackPanel x:Name="MinutesRow" Orientation="Horizontal" Margin="0,8,0,0">
-            <TextBlock Text="Выгружать через" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="2,0,10,0" />
+            <TextBlock Text="Через" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="2,0,10,0" />
             <Border Style="{StaticResource SegmentTrack}">
                 <StackPanel x:Name="MinutesPanel" Orientation="Horizontal" />
             </Border>
         </StackPanel>
-        <TextBlock x:Name="MemoryHint" Style="{StaticResource Caption}" Margin="2,8,0,0" TextWrapping="Wrap" LineHeight="18" />
-
-        <TextBlock Text="Как это работает" Style="{StaticResource SectionTitle}" Margin="2,16,0,6" />
-        <TextBlock Style="{StaticResource Caption}" Margin="2,0,0,0" LineHeight="18" TextWrapping="Wrap"
-                   Text="Нажмите клавишу и говорите, нажмите ещё раз, и текст появится там, где стоит курсор. Esc отменяет запись. Пока горит красная точка, микрофон включён. Голос распознаётся на этом компьютере и никуда не отправляется." />
+        <TextBlock x:Name="MemoryHint" Style="{StaticResource Caption}" Margin="2,8,0,0" />
     </StackPanel>
 </UserControl>

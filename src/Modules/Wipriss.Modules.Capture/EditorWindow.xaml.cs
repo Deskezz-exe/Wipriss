@@ -144,7 +144,7 @@ public partial class EditorWindow : Window
         _dragStart = e.GetPosition(Draft);
         Draft.CaptureMouse();
         _preview = BlurTool.IsChecked == true || CropTool.IsChecked == true
-            ? new Rectangle { Stroke = new SolidColorBrush(Color.FromRgb(0xE9, 0xE5, 0xDD)), StrokeThickness = 1.5, StrokeDashArray = [4, 3], Fill = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) }
+            ? new Rectangle { Stroke = new SolidColorBrush(Color.FromRgb(0xE6, 0xE6, 0xE9)), StrokeThickness = 1.5, StrokeDashArray = [4, 3], Fill = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) }
             : new Path { Stroke = new SolidColorBrush(_color), StrokeThickness = _width, Fill = new SolidColorBrush(_color), StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round };
         Draft.Children.Add(_preview);
     }

@@ -7,13 +7,13 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Border x:Name="Bar" CornerRadius="4" Margin="2" Background="#3A3833" />
+                    <Border x:Name="Bar" CornerRadius="4" Margin="2" Background="#38383F" />
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bar" Property="Background" Value="#57534B" />
+                            <Setter TargetName="Bar" Property="Background" Value="#54545C" />
                         </Trigger>
                         <Trigger Property="IsDragging" Value="True">
-                            <Setter TargetName="Bar" Property="Background" Value="#6A665D" />
+                            <Setter TargetName="Bar" Property="Background" Value="#66666E" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -27,7 +27,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ScrollBar">
-                    <Border Background="#141311">
+                    <Border Background="#141416">
                         <Track x:Name="PART_Track" IsDirectionReversed="True">
                             <Track.DecreaseRepeatButton>
                                 <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False" />
@@ -51,7 +51,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ScrollBar">
-                    <Border Background="#141311">
+                    <Border Background="#141416">
                         <Track x:Name="PART_Track" IsDirectionReversed="False">
                             <Track.DecreaseRepeatButton>
                                 <RepeatButton Command="ScrollBar.PageLeftCommand" Opacity="0" Focusable="False" />
@@ -90,7 +90,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ContextMenu">
-                    <Border Background="#1C1B18" BorderBrush="{StaticResource LineStrongBrush}" BorderThickness="1"
+                    <Border Background="#1C1C20" BorderBrush="{StaticResource LineStrongBrush}" BorderThickness="1"
                             CornerRadius="9" Padding="4" MinWidth="200">
                         <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
                     </Border>

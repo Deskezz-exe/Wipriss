@@ -24,7 +24,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-                                <Setter TargetName="Bd" Property="Background" Value="#1A1916" />
+                                <Setter TargetName="Bd" Property="Background" Value="#1A1A1D" />
                             </Trigger>
                             <Trigger Property="ToggleButton.IsChecked" Value="True">
                                 <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
@@ -44,14 +44,14 @@
         <Image x:Name="Shot" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor" />
         <Path x:Name="Dim" Fill="#99070706" IsHitTestVisible="False" />
         <Rectangle x:Name="Frame" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" IsHitTestVisible="False"
-                   Stroke="#E9E5DD" StrokeThickness="1.5" />
+                   Stroke="#E6E6E9" StrokeThickness="1.5" />
         <Border x:Name="SizeTag" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed" IsHitTestVisible="False"
                 Background="#E60B0B0A" CornerRadius="6" Padding="7,2">
             <TextBlock x:Name="SizeText" FontFamily="{StaticResource SmallFont}" FontSize="11.5" Typography.NumeralAlignment="Tabular" />
         </Border>
 
         <StackPanel x:Name="Bar" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,24,0,0" Cursor="Arrow">
-            <Border Background="{StaticResource IslandBrush}" BorderBrush="#3A3832" BorderThickness="1" CornerRadius="14" Padding="5">
+            <Border Background="{StaticResource IslandBrush}" BorderBrush="#3A3A40" BorderThickness="1" CornerRadius="14" Padding="5">
                 <StackPanel Orientation="Horizontal">
                     <RadioButton x:Name="AreaChoice" Style="{StaticResource Choice}" GroupName="CaptureMode" Tag="&#xE7A8;" Content="Область"
                                  IsChecked="True" Checked="Mode_Checked" ToolTip="Выделите область или щёлкните по окну" />

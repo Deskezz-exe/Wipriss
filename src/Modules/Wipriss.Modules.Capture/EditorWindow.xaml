@@ -15,7 +15,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
                         <Border x:Name="Ring" Width="26" Height="26" CornerRadius="13" BorderThickness="2" BorderBrush="Transparent">
-                            <Ellipse Width="16" Height="16" Fill="{TemplateBinding Background}" Stroke="#3A3833" StrokeThickness="1" />
+                            <Ellipse Width="16" Height="16" Fill="{TemplateBinding Background}" Stroke="#38383F" StrokeThickness="1" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -33,7 +33,7 @@
 
     <DockPanel>
         <!-- Tools -->
-        <Border DockPanel.Dock="Top" Padding="12,8" Background="#0E0D0C" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1">
+        <Border DockPanel.Dock="Top" Padding="12,8" Background="#0E0E10" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Style="{StaticResource PlainButton}" Content="Копировать" Click="Copy_Click" ToolTip="В буфер обмена (Ctrl+C)" />
@@ -103,7 +103,7 @@
         </Border>
 
         <!-- The picture -->
-        <ScrollViewer x:Name="Viewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#0A0A09"
+        <ScrollViewer x:Name="Viewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#0A0A0B"
                       Focusable="False">
             <Grid x:Name="Stage" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
                 <Grid.LayoutTransform>

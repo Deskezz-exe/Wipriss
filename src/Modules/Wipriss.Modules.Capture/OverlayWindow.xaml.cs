@@ -160,7 +160,7 @@ public partial class OverlayWindow : Window
         Frame.Margin = new Thickness(hole.X, hole.Y, 0, 0);
         Frame.Width = hole.Width;
         Frame.Height = hole.Height;
-        Frame.Stroke = selecting ? new SolidColorBrush(Color.FromRgb(0xE9, 0xE5, 0xDD)) : (Brush)FindResource("AccentBrush");
+        Frame.Stroke = selecting ? new SolidColorBrush(Color.FromRgb(0xE6, 0xE6, 0xE9)) : (Brush)FindResource("AccentBrush");
         Frame.Visibility = Visibility.Visible;
 
         SizeText.Text = $"{area.Width} × {area.Height}";

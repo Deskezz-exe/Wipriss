@@ -7,7 +7,7 @@
             <StackPanel>
                 <TextBlock Text="Таблицы в тёмном окне" />
                 <TextBlock Style="{StaticResource Caption}" Margin="0,3,0,10" TextWrapping="Wrap"
-                           Text="Поиск, сортировка, закреплённая шапка, весь экран. XLSX, XLS, XLSB, ODS, CSV, TSV. Можно перетащить файл на островок." />
+                           Text="Поиск, сортировка, закреплённая шапка. XLSX, XLS, XLSB, ODS, CSV, TSV. Файл можно перетащить на островок." />
                 <StackPanel Orientation="Horizontal">
                     <Button Style="{StaticResource PrimaryButton}" Content="Открыть таблицу…" Click="Pick_Click" />
                 </StackPanel>

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -18,10 +19,10 @@ namespace Wipriss.App;
 /// </summary>
 public partial class IslandWindow : Window
 {
-    // The outline inside the Island grid (612 x 268). The spare room around the open shape
-    // is for the spring's small overshoot.
-    private static readonly Rect CollapsedRect = new(240, 0, 132, 34);
-    private static readonly Rect ExpandedRect = new(8, 0, 596, 256);
+    // The outline inside the Island grid (612 x 294). The spare room around the open shape
+    // is for the spring's small overshoot. The closed pill grows to fit what it says.
+    private const double IslandWidth = 612, PillHeight = 34, PillMinWidth = 132, PillMaxWidth = 420;
+    private static readonly Rect ExpandedRect = new(8, 0, 596, 284);
     private const double CollapsedRadius = 17, ExpandedRadius = 22;
     private const double ContentRestOffset = -6;
 
@@ -29,7 +30,11 @@ public partial class IslandWindow : Window
     private static readonly IEasingFunction CloseEase = new SpringEase(damping: 1, frequency: 8);
     private static readonly IEasingFunction FadeEase = Frozen(new CubicEase { EasingMode = EasingMode.EaseOut });
 
-    private readonly RectangleGeometry _shape = new(CollapsedRect, CollapsedRadius, CollapsedRadius);
+    private Rect _collapsedRect = PillRect(PillMinWidth);
+    private readonly RectangleGeometry _shape;
+    private readonly DispatcherTimer _clock;
+    private readonly List<IIslandCard> _cards = [];
+    private IslandActivity? _activity;
     private readonly SettingsStore _store;
     private readonly ModuleManager _modules;
     private readonly DispatcherTimer _expandDelay;
@@ -45,6 +50,7 @@ public partial class IslandWindow : Window
         InitializeComponent();
         _store = store;
         _modules = modules;
+        _shape = new RectangleGeometry(_collapsedRect, CollapsedRadius, CollapsedRadius);
 
         // One shape both fills the island (as a clip) and draws its edge.
         Surface.Clip = _shape;
@@ -56,9 +62,19 @@ public partial class IslandWindow : Window
         _collapseDelay = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(350) };
         _collapseDelay.Tick += (_, _) => { _collapseDelay.Stop(); SetExpanded(false); };
 
+        // Runs only while the island is open: the clock moves on to the next minute.
+        _clock = new DispatcherTimer(DispatcherPriority.Background);
+        _clock.Tick += (_, _) => UpdateClock();
+
         _store.Changed += OnSettingsChanged;
         RebuildTiles();
+        HookCards();
     }
+
+    /// <summary>WM_HOTKEY ids go here (set by the app's hotkey service).</summary>
+    public Func<int, bool>? HotkeyHandler { get; set; }
+
+    public IntPtr Handle { get; private set; }
 
     public event Action? SettingsRequested;
 
@@ -77,11 +93,14 @@ public partial class IslandWindow : Window
         base.OnSourceInitialized(e);
 
         var hwnd = new WindowInteropHelper(this).Handle;
+        Handle = hwnd;
         // Tool window: not in Alt+Tab. No-activate: clicking the island never steals focus from your app.
         nint style = Native.GetWindowLongPtr(hwnd, Native.GWL_EXSTYLE);
         Native.SetWindowLongPtr(hwnd, Native.GWL_EXSTYLE, style | Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE);
         // The island never shows up in screenshots or screen recordings, like a hardware cut-out.
-        Native.SetWindowDisplayAffinity(hwnd, Native.WDA_EXCLUDEFROMCAPTURE);
+        // WIPRISS_UI_TEST=1 (checks of the interface only) leaves it visible to screenshots.
+        if (Environment.GetEnvironmentVariable("WIPRISS_UI_TEST") != "1")
+            Native.SetWindowDisplayAffinity(hwnd, Native.WDA_EXCLUDEFROMCAPTURE);
 
         var source = HwndSource.FromHwnd(hwnd);
         source.AddHook(WndProc);
@@ -99,6 +118,8 @@ public partial class IslandWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _store.Changed -= OnSettingsChanged;
+        foreach (var card in _cards) card.Changed -= OnCardChanged;
+        _clock.Stop();
         _fullscreen?.Dispose();
         base.OnClosed(e);
     }
@@ -115,6 +136,8 @@ public partial class IslandWindow : Window
             Dispatcher.BeginInvoke(PlaceAtTop);
         else if (msg == Native.WM_TIMECHANGE)
             _modules.RaiseTimeChanged();
+        else if (msg == Native.WM_HOTKEY && HotkeyHandler?.Invoke((int)wParam) == true)
+            handled = true;
         return IntPtr.Zero;
     }
 
@@ -124,13 +147,150 @@ public partial class IslandWindow : Window
         Top = 0;
     }
 
+    private static IEnumerable<ModuleInfo> DockModules(AppSettings settings) =>
+        ModuleCatalog.All.Where(m => m.Place == ModulePlace.Dock && settings.IsModuleEnabled(m.Id));
+
     private void OnSettingsChanged()
     {
-        var enabled = ModuleCatalog.All.Where(m => _store.Current.IsModuleEnabled(m.Id)).Select(m => m.Id);
+        var enabled = DockModules(_store.Current).Select(m => m.Id);
         if (enabled.SequenceEqual(_tiles.Select(t => t.Info.Id))) UpdateTiles();
         else RebuildTiles();
+        HookCards();
         UpdateVisibility();
     }
+
+    // ---- Live cards and the pill's status ----
+
+    /// <summary>Follows the card modules that are running now (modules start and stop with settings).</summary>
+    private void HookCards()
+    {
+        foreach (var card in _cards) card.Changed -= OnCardChanged;
+        _cards.Clear();
+        foreach (var info in ModuleCatalog.All.Where(m => m.Place == ModulePlace.Card))
+            if (_modules.Get(info.Id) is IIslandCard card)
+            {
+                _cards.Add(card);
+                card.Changed += OnCardChanged;
+            }
+        _activity = null;
+        OnCardChanged();
+    }
+
+    private void OnCardChanged()
+    {
+        UpdateActivity();
+        if (_expanded) BuildCards();
+    }
+
+    private void UpdateActivity()
+    {
+        IslandActivity? next = null;
+        foreach (var card in _cards)
+        {
+            var a = SafeActivity(card);
+            // What plays is in the pill only if the user wants it; work in progress always is.
+            if (a is null || (a.State == ActivityState.Info && !_store.Current.MediaInPill)) continue;
+            next = a;
+            break;
+        }
+        if (next == _activity && next is not null) return;
+        _activity = next;
+
+        if (next is null)
+        {
+            ActivityRow.Visibility = Visibility.Collapsed;
+            Logo.Visibility = Visibility.Visible;
+            Spin(false);
+            SetPillWidth(PillMinWidth);
+            return;
+        }
+
+        Logo.Visibility = Visibility.Collapsed;
+        ActivityRow.Visibility = Visibility.Visible;
+        ActivityText.Text = next.Text;
+        ActivityIcon.Data = next.Icon;
+        ActivityIcon.Fill = next.IconBrush ?? (Brush)FindResource("TextBrush");
+        ActivityIcon.Visibility = next.Icon is null ? Visibility.Collapsed : Visibility.Visible;
+        Spinner.Visibility = next.State == ActivityState.Busy ? Visibility.Visible : Visibility.Collapsed;
+        DoneMark.Visibility = next.State == ActivityState.Done ? Visibility.Visible : Visibility.Collapsed;
+        WaitDot.Visibility = next.State == ActivityState.Waiting ? Visibility.Visible : Visibility.Collapsed;
+        Spin(next.State == ActivityState.Busy && !_expanded);
+
+        ActivityRow.Measure(new Size(double.PositiveInfinity, PillHeight));
+        SetPillWidth(Math.Clamp(ActivityRow.DesiredSize.Width + 36, PillMinWidth, PillMaxWidth));
+    }
+
+    private static IslandActivity? SafeActivity(IIslandCard card)
+    {
+        try { return card.Activity; }
+        catch (Exception ex) { CrashLog.Write(ex); return null; }
+    }
+
+    private static Rect PillRect(double width) => new((IslandWidth - width) / 2, 0, width, PillHeight);
+
+    private void SetPillWidth(double width)
+    {
+        var target = PillRect(width);
+        if (target == _collapsedRect) return;
+        _collapsedRect = target;
+        if (_expanded) return;
+        _shape.BeginAnimation(RectangleGeometry.RectProperty,
+            new RectAnimation(_collapsedRect, TimeSpan.FromMilliseconds(380)) { EasingFunction = OpenEase });
+    }
+
+    /// <summary>The spinner turns only while it is seen; its frame rate is capped to keep the CPU quiet.</summary>
+    private void Spin(bool on)
+    {
+        if (!on || Spinner.Visibility != Visibility.Visible)
+        {
+            SpinnerTurn.BeginAnimation(RotateTransform.AngleProperty, null);
+            return;
+        }
+        var turn = new DoubleAnimation(0, 360, TimeSpan.FromSeconds(0.9)) { RepeatBehavior = RepeatBehavior.Forever };
+        Timeline.SetDesiredFrameRate(turn, 15);
+        SpinnerTurn.BeginAnimation(RotateTransform.AngleProperty, turn);
+    }
+
+    /// <summary>Builds the cards that have something to show. Only while the island is open.</summary>
+    private void BuildCards()
+    {
+        Cards.Children.Clear();
+        foreach (var card in _cards)
+        {
+            bool has;
+            try { has = card.HasContent; } catch (Exception ex) { CrashLog.Write(ex); has = false; }
+            if (!has) continue;
+            try
+            {
+                Cards.Children.Add(new Border
+                {
+                    Background = (Brush)FindResource("TileBrush"),
+                    BorderBrush = (Brush)FindResource("DividerBrush"),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(14),
+                    Padding = new Thickness(14, 12, 14, 12),
+                    Margin = new Thickness(3, 0, 3, 0),
+                    Child = card.CreateCard(),
+                });
+            }
+            catch (Exception ex) { CrashLog.Write(ex); }
+        }
+        EmptyHome.Visibility = Cards.Children.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void UpdateClock()
+    {
+        var now = DateTime.Now;
+        string time = now.ToString("HH:mm");
+        ClockText.Text = time;
+        BigClock.Text = time;
+        var ru = System.Globalization.CultureInfo.GetCultureInfo("ru-RU");
+        string date = now.ToString("dddd, d MMMM", ru);
+        DateText.Text = char.ToUpper(date[0], ru) + date[1..];
+        _clock.Interval = TimeSpan.FromSeconds(60 - now.Second + 0.2);
+        _clock.Start();
+    }
+
 
     /// <summary>
     /// Creates the tiles. Only when the set of enabled modules changes. Their captions are filled when the
@@ -138,8 +298,7 @@ public partial class IslandWindow : Window
     /// </summary>
     private void RebuildTiles()
     {
-        _tiles = ModuleCatalog.All
-            .Where(m => _store.Current.IsModuleEnabled(m.Id))
+        _tiles = DockModules(_store.Current)
             .Select(m => new TileItem(m))
             .ToList();
         Tiles.ItemsSource = _tiles;
@@ -269,13 +428,24 @@ public partial class IslandWindow : Window
     {
         if (_expanded == expand) return;
         _expanded = expand;
-        if (expand) UpdateTiles();
+        if (expand)
+        {
+            UpdateTiles();
+            BuildCards();
+            UpdateClock();
+            Spin(false);
+        }
+        else
+        {
+            _clock.Stop();
+            Spin(_activity?.State == ActivityState.Busy);
+        }
 
         var duration = TimeSpan.FromMilliseconds(expand ? 440 : 300);
         var ease = expand ? OpenEase : CloseEase;
         double radius = expand ? ExpandedRadius : CollapsedRadius;
 
-        var outline = new RectAnimation(expand ? ExpandedRect : CollapsedRect, duration) { EasingFunction = ease };
+        var outline = new RectAnimation(expand ? ExpandedRect : _collapsedRect, duration) { EasingFunction = ease };
         _shape.BeginAnimation(RectangleGeometry.RectProperty, outline);
         _shape.BeginAnimation(RectangleGeometry.RadiusXProperty, new DoubleAnimation(radius, duration) { EasingFunction = ease });
         _shape.BeginAnimation(RectangleGeometry.RadiusYProperty, new DoubleAnimation(radius, duration) { EasingFunction = ease });
@@ -294,7 +464,20 @@ public partial class IslandWindow : Window
             ExpandedShift.BeginAnimation(TranslateTransform.YProperty,
                 new DoubleAnimation(ContentRestOffset, TimeSpan.FromMilliseconds(200)) { EasingFunction = FadeEase });
             Fade(CollapsedContent, 1, delayMs: 150, durationMs: 140);
+            DropCardsLater();
         }
+    }
+
+    /// <summary>Cards are dropped once the close animation is over, so the closed island holds no card UI.</summary>
+    private void DropCardsLater()
+    {
+        var drop = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(400) };
+        drop.Tick += (_, _) =>
+        {
+            drop.Stop();
+            if (!_expanded) Cards.Children.Clear();
+        };
+        drop.Start();
     }
 
     private static void Fade(UIElement element, double to, int delayMs, int durationMs) =>
@@ -309,11 +492,14 @@ public partial class IslandWindow : Window
         _expandDelay.Stop();
         _collapseDelay.Stop();
         _expanded = false;
+        _clock.Stop();
+        Cards.Children.Clear();
+        Spin(_activity?.State == ActivityState.Busy);
 
         _shape.BeginAnimation(RectangleGeometry.RectProperty, null);
         _shape.BeginAnimation(RectangleGeometry.RadiusXProperty, null);
         _shape.BeginAnimation(RectangleGeometry.RadiusYProperty, null);
-        _shape.Rect = CollapsedRect;
+        _shape.Rect = _collapsedRect;
         _shape.RadiusX = _shape.RadiusY = CollapsedRadius;
 
         ExpandedContent.BeginAnimation(OpacityProperty, null);

@@ -16,7 +16,7 @@
         </DockPanel>
 
         <TextBlock x:Name="Hint" DockPanel.Dock="Bottom" Margin="2,10,0,0" Style="{StaticResource Caption}"
-                   Text="Клик по записи копирует её снова. Хранятся 20 последних, зашифрованы, только на этом компьютере. Пароли из менеджеров паролей не сохраняются." />
+                   Text="Клик по записи копирует её снова. Последние 20, в зашифрованном виде, только на этом ПК. Пароли не сохраняются." />
 
         <Grid>
             <TextBlock x:Name="EmptyText" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"

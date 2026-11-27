@@ -7,6 +7,65 @@ namespace Wipriss.Voice;
 /// <summary>One file of a speech model: where it comes from and what it must be.</summary>
 internal sealed record ModelFile(string Name, string Url, long Size, string Sha256);
 
+/// <summary>How sherpa-onnx runs a model.</summary>
+internal enum ModelKind { NemoTransducer, Moonshine, Whisper }
+
+/// <summary>A speech model the user can choose: what it understands, how fast it is, what it weighs.</summary>
+internal sealed record VoiceModel(string Id, string Title, string Languages, string Speed, string Note,
+    ModelKind Kind, ModelFile[] Files)
+{
+    public long Size => Files.Sum(f => f.Size);
+
+    public string SizeText => $"{Math.Round(Size / 1048576.0):0} МБ";
+}
+
+/// <summary>The models Wipriss offers. All are free to use (MIT) and run on the processor, offline.</summary>
+internal static class VoiceModels
+{
+    public const string DefaultId = "gigaam-v3-ru";
+
+    private const string MoonshineBase =
+        "https://huggingface.co/csukuangfj/sherpa-onnx-moonshine-base-en-int8/resolve/052b0798ad1bf046a140fdd4efcd9426530fa3f5/";
+
+    private const string WhisperBase =
+        "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/8f3c18b358db4d1f2fc1eae49d75cd20989e4309/";
+
+    public static readonly VoiceModel[] All =
+    [
+        new(DefaultId, "GigaAM v3", "Русский", "Быстрая", "Лучшая для русского: сразу с точками и заглавными",
+            ModelKind.NemoTransducer, ModelStore.GigaAmV3Files),
+        new("moonshine-base-en", "Moonshine Base", "English", "Быстрая", "Для английского, с пунктуацией",
+            ModelKind.Moonshine,
+            [
+                new("preprocess.onnx", MoonshineBase + "preprocess.onnx", 14_077_290,
+                    "ffa630d395c5ccf76f5d4954be5b882df76aaf6491519ec01fd82ea7a3819fb2"),
+                new("encode.int8.onnx", MoonshineBase + "encode.int8.onnx", 50_311_494,
+                    "7e38770f776f2e5583a53b052936005df2ba5c833d7e09c2a5fd796b94bf73e2"),
+                new("uncached_decode.int8.onnx", MoonshineBase + "uncached_decode.int8.onnx", 122_120_451,
+                    "c01f4b35093bcac20d352d23a75a539e772964579f9d024a90e5e6f09cae9987"),
+                new("cached_decode.int8.onnx", MoonshineBase + "cached_decode.int8.onnx", 99_983_837,
+                    "2db74e51cedf64a8b1be3c8192e0bb5e4923af0e90bd9e87f8e8771873f8ea03"),
+                new("tokens.txt", MoonshineBase + "tokens.txt", 436_688,
+                    "1165c2aeb9f72f457a83be2d459a09054f27490acd9b41bd43794dfd25e296ea"),
+                new("LICENSE", MoonshineBase + "LICENSE", 1_071,
+                    "29f60769d1779eb7e196d96b8d2dd471d0263cf8200c79e55c0c00183971ee1b"),
+            ]),
+        new("whisper-small", "Whisper Small", "99 языков", "Тяжёлая", "Для остальных языков, язык определяет сама",
+            ModelKind.Whisper,
+            [
+                new("small-encoder.int8.onnx", WhisperBase + "small-encoder.int8.onnx", 112_442_483,
+                    "4cbe7b22fa9026b843b60a68640c747de05bafb1a11b57edc0e66c232d9f33a9"),
+                new("small-decoder.int8.onnx", WhisperBase + "small-decoder.int8.onnx", 262_226_114,
+                    "acad50b5c782696e91b55914cc5ab4f756f1532f76e22aa6fc615f39fb69a8ee"),
+                new("small-tokens.txt", WhisperBase + "small-tokens.txt", 816_730,
+                    "b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126"),
+            ]),
+    ];
+
+    /// <summary>The model with this id, or the default one for an unknown id (old settings, a bad request).</summary>
+    public static VoiceModel Get(string? id) => All.FirstOrDefault(m => m.Id == id) ?? All[0];
+}
+
 /// <summary>
 /// The speech model on disk. Files come only from fixed HTTPS links pinned to one revision,
 /// are written next to the target as ".part" and moved into place only after the size and
@@ -19,6 +78,9 @@ internal sealed class ModelStore(string modelsDir, string folderName, IReadOnlyL
     /// ONNX by the sherpa-onnx authors. Russian only.
     /// </summary>
     public static ModelStore GigaAmV3(string modelsDir) => new(modelsDir, "gigaam-v3-ru", GigaAmV3Files);
+
+    /// <summary>The store of a chosen model; each model has its own folder named after its id.</summary>
+    public static ModelStore For(string modelsDir, VoiceModel model) => new(modelsDir, model.Id, model.Files);
 
     private const string GigaAmBase =
         "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16/resolve/a6039be7cee829a9044a69ac0ebaf1c191217c97/";

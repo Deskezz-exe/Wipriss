@@ -467,7 +467,7 @@
                             <Button Style="{StaticResource PlainButton}" FontSize="12" Content="Обновить список" Click="ReloadPrograms_Click" />
                         </StackPanel>
                         <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" LineHeight="18" VerticalAlignment="Center" Margin="0,0,12,0"
-                                   Text="Сначала работает деинсталлятор самой программы. Потом Wipriss покажет, что от неё осталось, и удалит только то, что вы отметите." />
+                                   Text="Сначала запустится деинсталлятор программы, затем покажем остатки. Удалим только отмеченное." />
                     </DockPanel>
                 </Border>
 
@@ -544,7 +544,7 @@
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top" Text="Вернуть записи реестра" FontSize="18" FontWeight="SemiBold" />
                         <TextBlock DockPanel.Dock="Top" Style="{StaticResource Caption}" Margin="0,8,0,12" TextWrapping="Wrap" LineHeight="19"
-                                   Text="Перед удалением остатков Wipriss копирует удаляемые записи реестра. Файлы так не вернуть: они удаляются мимо Корзины." />
+                                   Text="Перед удалением записей реестра делаем копию .reg. Файлы удаляются мимо Корзины, их не вернуть." />
                         <Button DockPanel.Dock="Bottom" Style="{StaticResource PlainButton}" Content="Закрыть" HorizontalAlignment="Right" Margin="0,14,0,0" Click="BackupsClose_Click" />
                         <Grid>
                             <TextBlock x:Name="BackupsEmpty" Text="Копий пока нет" Foreground="{StaticResource SubtleTextBrush}" Visibility="Collapsed" />
@@ -577,7 +577,7 @@
                 <ContentControl Style="{StaticResource Socket}" Content="&#xE74D;" Width="52" Height="52" FontSize="22" HorizontalAlignment="Center" />
                 <TextBlock Text="Что занимает место" Style="{StaticResource PanelTitle}" HorizontalAlignment="Center" Margin="0,16,0,0" />
                 <TextBlock Style="{StaticResource Caption}" TextAlignment="Center" TextWrapping="Wrap" LineHeight="19" Margin="0,8,0,0"
-                           Text="Сначала Wipriss посмотрит, что установлено и чем вы пользуетесь, потом найдёт кэши, временные файлы и остатки удалённых программ. У каждой находки цвет и объяснение простыми словами." />
+                           Text="Поиск только читает: ничего не удаляется. Найдём кэши, временные файлы и остатки программ, у каждого пункта цвет и пояснение." />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,14,0,0">
                     <Ellipse Width="8" Height="8" Fill="{StaticResource OkBrush}" Margin="0,0,6,0" />
                     <TextBlock Text="можно удалить" Style="{StaticResource Caption}" Margin="0,0,16,0" />
@@ -618,7 +618,7 @@
                     </StackPanel>
                     <TextBlock x:Name="SelectAllText" Margin="0,12,0,0" TextWrapping="Wrap" LineHeight="20" />
                     <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap" LineHeight="19"
-                               Text="Красные пункты (пароли, закладки, системное) не выбираются никогда. Перед удалением ещё раз покажем, сколько освободится." />
+                               Text="Красные пункты (пароли, закладки, системное) выбрать нельзя. Без списка и подтверждения ничего не удалится." />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
                         <Button Style="{StaticResource PlainButton}" Content="Отмена" Click="SelectAllCancel_Click" Margin="0,0,8,0" />
                         <Button Style="{StaticResource DangerButton}" Content="Всё равно выбрать всё" Click="SelectAllConfirm_Click" />

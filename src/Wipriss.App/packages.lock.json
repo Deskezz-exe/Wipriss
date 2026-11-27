@@ -1,7 +1,7 @@
 {
   "version": 1,
   "dependencies": {
-    "net10.0-windows7.0": {
+    "net10.0-windows10.0.19041": {
       "ExcelDataReader": {
         "type": "Transitive",
         "resolved": "3.9.0",
@@ -107,6 +107,12 @@
           "Wipriss.ProcessTools": "[0.1.0, )"
         }
       },
+      "wipriss.modules.agents": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )"
+        }
+      },
       "wipriss.modules.capture": {
         "type": "Project",
         "dependencies": {
@@ -131,6 +137,12 @@
         "dependencies": {
           "Wipriss.Core": "[0.1.0, )",
           "Wipriss.Modules.Capture": "[0.1.0, )"
+        }
+      },
+      "wipriss.modules.media": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )"
         }
       },
       "wipriss.modules.network": {

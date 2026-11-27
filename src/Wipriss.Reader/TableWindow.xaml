@@ -88,7 +88,7 @@
                          PreviewKeyDown="CellText_PreviewKeyDown" GotKeyboardFocus="CellText_GotKeyboardFocus"
                          LostKeyboardFocus="CellText_LostKeyboardFocus" TextWrapping="Wrap" AcceptsReturn="True"
                          Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextBrush}"
-                         CaretBrush="{StaticResource TextBrush}" SelectionBrush="#6F8F78" Padding="10,7" MaxHeight="110"
+                         CaretBrush="{StaticResource TextBrush}" SelectionBrush="#5B6B86" Padding="10,7" MaxHeight="110"
                          VerticalScrollBarVisibility="Auto" FontSize="13" />
             </Grid>
         </Border>
@@ -164,7 +164,7 @@
         </StackPanel>
 
         <Popup x:Name="ColorPopup" StaysOpen="False" AllowsTransparency="True" Placement="Bottom">
-            <Border Background="#1C1B18" BorderBrush="{StaticResource LineStrongBrush}" BorderThickness="1" CornerRadius="9" Padding="6">
+            <Border Background="#1C1C20" BorderBrush="{StaticResource LineStrongBrush}" BorderThickness="1" CornerRadius="9" Padding="6">
                 <StackPanel>
                     <Button x:Name="ColorAuto" Style="{StaticResource TextButton}" HorizontalAlignment="Stretch" Click="ColorAuto_Click"
                             FontFamily="{StaticResource UiFont}" FontSize="12.5" />
@@ -203,8 +203,8 @@
                 </view:TableGrid>
                 <!-- The cell being edited: a text box right over it -->
                 <Canvas x:Name="EditLayer" ClipToBounds="True">
-                    <TextBox x:Name="CellEditor" Visibility="Collapsed" Background="#1E1D1A" Foreground="{StaticResource TextBrush}"
-                             CaretBrush="{StaticResource TextBrush}" SelectionBrush="#6F8F78" BorderBrush="{StaticResource AccentBrush}"
+                    <TextBox x:Name="CellEditor" Visibility="Collapsed" Background="#1E1E22" Foreground="{StaticResource TextBrush}"
+                             CaretBrush="{StaticResource TextBrush}" SelectionBrush="#5B6B86" BorderBrush="{StaticResource AccentBrush}"
                              BorderThickness="2" Padding="4,0" VerticalContentAlignment="Center" AcceptsReturn="False"
                              PreviewKeyDown="CellEditor_PreviewKeyDown" LostKeyboardFocus="CellEditor_LostKeyboardFocus"
                              TextChanged="CellEditor_TextChanged">
@@ -223,7 +223,7 @@
                            Scroll="VScroll_Scroll" />
                 <ScrollBar x:Name="HScroll" Grid.Row="1" Style="{StaticResource HScroll}" Minimum="0" SmallChange="60"
                            Scroll="HScroll_Scroll" />
-                <Border Grid.Row="1" Grid.Column="1" Background="#141311" />
+                <Border Grid.Row="1" Grid.Column="1" Background="#141416" />
 
                 <!-- Opening, sorting, errors -->
                 <Border x:Name="Overlay" Grid.ColumnSpan="2" Grid.RowSpan="2" Background="#E6121110" Visibility="Collapsed">

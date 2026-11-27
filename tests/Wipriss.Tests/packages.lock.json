@@ -192,6 +192,12 @@
       "wipriss.core": {
         "type": "Project"
       },
+      "wipriss.modules.agents": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )"
+        }
+      },
       "wipriss.modules.reminders": {
         "type": "Project",
         "dependencies": {

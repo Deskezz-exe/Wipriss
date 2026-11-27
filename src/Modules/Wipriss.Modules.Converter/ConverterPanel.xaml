@@ -7,7 +7,7 @@
             <StackPanel>
                 <TextBlock Text="Перетащите картинки на островок или сюда" />
                 <TextBlock Style="{StaticResource Caption}" Margin="0,3,0,10" TextWrapping="Wrap"
-                           Text="Откроется окно правки: формат, сжатие, размер, фон, рисование. JPG, PNG, WEBP, AVIF, HEIC, BMP, ICO, TIFF, GIF." />
+                           Text="Откроется окно правки: формат, сжатие, размер, фон. JPG, PNG, WEBP, AVIF, HEIC, BMP, ICO, TIFF, GIF." />
                 <StackPanel Orientation="Horizontal">
                     <Button Style="{StaticResource PrimaryButton}" Content="Выбрать картинки…" Click="Pick_Click" />
                     <Button x:Name="OpenButton" Style="{StaticResource PlainButton}" Content="Открыть окно правки" Margin="8,0,0,0"

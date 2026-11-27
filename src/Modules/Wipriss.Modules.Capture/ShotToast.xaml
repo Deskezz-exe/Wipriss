@@ -5,14 +5,14 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
         ShowInTaskbar="False" Topmost="True" ShowActivated="False" SizeToContent="WidthAndHeight"
         FontFamily="{StaticResource UiFont}" Foreground="{StaticResource TextBrush}" Opacity="0">
-    <Border x:Name="Card" Margin="8" Background="{StaticResource IslandBrush}" BorderBrush="#34322D" BorderThickness="1"
+    <Border x:Name="Card" Margin="8" Background="{StaticResource IslandBrush}" BorderBrush="#303036" BorderThickness="1"
             CornerRadius="14" Padding="10" Cursor="Hand" MouseLeftButtonUp="Card_Click">
         <Border.RenderTransform>
             <TranslateTransform x:Name="Slide" Y="10" />
         </Border.RenderTransform>
         <StackPanel Width="264">
             <Grid>
-                <Border CornerRadius="8" ClipToBounds="True" Background="#151412" MaxHeight="150">
+                <Border CornerRadius="8" ClipToBounds="True" Background="#151517" MaxHeight="150">
                     <Image x:Name="Thumb" Stretch="Uniform" MaxHeight="150" RenderOptions.BitmapScalingMode="HighQuality" />
                 </Border>
                 <Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0" Style="{StaticResource IconButton}"

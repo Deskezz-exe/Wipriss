@@ -73,7 +73,7 @@ public partial class TableWindow : Window
     {
         base.OnSourceInitialized(e);
         NativeWindowStyle.DarkTitleBar(this);
-        NativeWindowStyle.FrameColors(this, Color.FromRgb(0x2A, 0x28, 0x25), Color.FromRgb(0x12, 0x11, 0x10), Color.FromRgb(0xEC, 0xE8, 0xE1));
+        NativeWindowStyle.FrameColors(this, Color.FromRgb(0x26, 0x26, 0x2B), Color.FromRgb(0x11, 0x11, 0x13), Color.FromRgb(0xED, 0xED, 0xEF));
     }
 
     private void ShowName()
