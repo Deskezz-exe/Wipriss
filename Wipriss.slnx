@@ -18,6 +18,7 @@
     <Project Path="src/Modules/Wipriss.Modules.Network/Wipriss.Modules.Network.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Reminders/Wipriss.Modules.Reminders.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Tables/Wipriss.Modules.Tables.csproj" />
+    <Project Path="src/Modules/Wipriss.Modules.Voice/Wipriss.Modules.Voice.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Wipriss.Tests/Wipriss.Tests.csproj" />

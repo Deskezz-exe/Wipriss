@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The panel, the hotkey and the pill. Speech is recognized by Wipriss.Voice.exe, so sherpa-onnx
+       and the model never load into the island. -->
+  <PropertyGroup>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Wipriss.Core\Wipriss.Core.csproj" />
+    <Compile Include="..\..\Wipriss.Voice\Protocol.cs" Link="Protocol.cs" />
+    <!-- Only the size check is used here (is the model downloaded?); downloading runs in Wipriss.Voice.exe. -->
+    <Compile Include="..\..\Wipriss.Voice\ModelStore.cs" Link="ModelStore.cs" />
+  </ItemGroup>
+
+</Project>

@@ -34,6 +34,8 @@
     <Compile Include="..\..\src\Wipriss.ExplorerMenu\MenuSwitch.cs" Link="Linked\MenuSwitch.cs" />
     <Compile Include="..\..\src\Wipriss.ExplorerMenu\ExplorerRestart.cs" Link="Linked\ExplorerRestart.cs" />
     <Compile Include="..\..\src\Wipriss.App\Shell\ExplorerList.cs" Link="Linked\ExplorerList.cs" />
+    <Compile Include="..\..\src\Modules\Wipriss.Modules.Voice\HotkeyHook.cs" Link="Linked\HotkeyHook.cs" />
+    <Compile Include="..\..\src\Modules\Wipriss.Modules.Voice\VoiceSettings.cs" Link="Linked\VoiceSettings.cs" />
   </ItemGroup>
 
   <ItemGroup>

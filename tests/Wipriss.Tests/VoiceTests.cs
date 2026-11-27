@@ -66,6 +66,17 @@ public sealed class VoiceTests : IDisposable
         Assert.Equal(16000 * 61, pieces.Sum(p => p.Length));
     }
 
+    [Fact]
+    public void Level_FollowsLoudness()
+    {
+        Assert.Equal(0, Microphone.LevelOf([]));
+        Assert.Equal(0, Microphone.LevelOf(new float[1600]));
+        Assert.Equal(0, Microphone.LevelOf(Noise(1600, 0.001f)));   // room hum
+        Assert.Equal(100, Microphone.LevelOf(Noise(1600, 0.9f)));   // shouting
+        int normal = Microphone.LevelOf(Noise(1600, 0.05f));        // ordinary speech
+        Assert.InRange(normal, 30, 90);
+    }
+
     // --- the model on disk ---
 
     [Fact]

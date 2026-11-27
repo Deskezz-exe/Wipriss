@@ -17,7 +17,7 @@ internal static class Program
     /// <summary>A forgotten recording stops by itself.</summary>
     private const int MaxRecordSeconds = 5 * 60;
 
-    private static readonly Lock Gate = new();
+    private static readonly Lock Gate = new(), OutGate = new();
     private static StreamWriter? _stdout;
     private static SpeechRecognizer? _recognizer;
     private static Microphone? _microphone;
@@ -131,7 +131,8 @@ internal static class Program
             _idle?.Change(Timeout.Infinite, Timeout.Infinite);
             // The limit fires on the microphone thread; stopping from there would wait on itself.
             _microphone ??= new Microphone(MaxRecordSeconds,
-                () => ThreadPool.QueueUserWorkItem(_ => StopListening(recognize: true)));
+                () => ThreadPool.QueueUserWorkItem(_ => StopListening(recognize: true)),
+                level => Send(new VoiceReply { Kind = VoiceReplyKind.Level, Percent = level }));
             if (_microphone.IsRecording) return;
             var result = _microphone.Start();
             if (result != VoiceError.None) { Fail(result); ArmIdle(); return; }
@@ -143,7 +144,12 @@ internal static class Program
     {
         lock (Gate)
         {
-            if (_microphone is not { IsRecording: true } || _recognizer is null) return;
+            if (_microphone is not { IsRecording: true } || _recognizer is null)
+            {
+                // Already stopped (the 5-minute limit, a failed start): Wipriss still waits for an answer.
+                if (recognize) Send(new VoiceReply { Kind = VoiceReplyKind.Text, Text = "" });
+                return;
+            }
             var samples = _microphone.Stop();
             if (recognize)
             {
@@ -190,9 +196,13 @@ internal static class Program
 
     private static void Fail(VoiceError error) => Send(new VoiceReply { Kind = VoiceReplyKind.Error, Error = error });
 
+    /// <summary>
+    /// Writes one answer. Its own lock: the microphone thread sends levels while the main thread may hold
+    /// <see cref="Gate"/> and wait for that thread to finish.
+    /// </summary>
     private static void Send(VoiceReply reply)
     {
-        lock (Gate)
+        lock (OutGate)
         {
             try { _stdout?.WriteLine(JsonSerializer.Serialize(reply, VoiceJson.Default.VoiceReply)); }
             catch (IOException) { Environment.Exit(3); } // Wipriss is gone: close the microphone and leave

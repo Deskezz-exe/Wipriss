@@ -31,6 +31,8 @@ public enum VoiceReplyKind
     Ready,
     /// <summary>The microphone is open.</summary>
     Listening,
+    /// <summary>While listening, about 10 times a second: loudness 0..100 in <see cref="VoiceReply.Percent"/>.</summary>
+    Level,
     /// <summary>The microphone is closed, recognition is running.</summary>
     Recognizing,
     /// <summary>The recognized text (may be empty if nothing was said).</summary>

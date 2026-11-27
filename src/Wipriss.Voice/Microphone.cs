@@ -28,13 +28,29 @@ internal sealed unsafe partial class Microphone : IDisposable
 
     /// <param name="maxSeconds">Recording stops by itself after this long.</param>
     /// <param name="limitReached">Called on the worker thread when the limit stops the recording.</param>
-    public Microphone(int maxSeconds, Action? limitReached = null)
+    /// <param name="level">Called on the worker thread about 10 times a second with the loudness, 0..100.</param>
+    public Microphone(int maxSeconds, Action? limitReached = null, Action<int>? level = null)
     {
         _maxSamples = maxSeconds * SampleRate;
         LimitReached = limitReached;
+        Level = level;
     }
 
     private Action? LimitReached { get; }
+
+    private Action<int>? Level { get; }
+
+    /// <summary>Loudness of the newest audio for the waves on screen: -50 dBFS → 0, -10 dBFS → 100.</summary>
+    internal static int LevelOf(ReadOnlySpan<float> samples)
+    {
+        if (samples.IsEmpty) return 0;
+        double sum = 0;
+        foreach (var s in samples) sum += (double)s * s;
+        double rms = Math.Sqrt(sum / samples.Length);
+        if (rms <= 0) return 0;
+        double db = 20 * Math.Log10(rms);
+        return (int)Math.Round(Math.Clamp((db + 50) / 40, 0, 1) * 100);
+    }
 
     public bool IsRecording => _recording;
 
@@ -135,12 +151,16 @@ internal sealed unsafe partial class Microphone : IDisposable
         {
             WaitForSingleObject(_event, Infinite);
             bool full;
+            int level = -1;
             lock (_gate)
             {
                 if (!_recording) return;
+                int before = _count;
                 Drain(requeue: true);
                 full = _count >= _maxSamples;
+                if (Level is not null && _count > before) level = LevelOf(_samples.AsSpan(before, _count - before));
             }
+            if (level >= 0) Level!(level);
             if (full)
             {
                 LimitReached?.Invoke();

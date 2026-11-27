@@ -30,6 +30,7 @@
     <!-- The one-shot picture converter ships next to Wipriss.exe (Magick.NET loads only there) -->
     <ProjectReference Include="..\Wipriss.Converter\Wipriss.Converter.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Tables\Wipriss.Modules.Tables.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Voice\Wipriss.Modules.Voice.csproj" />
     <!-- The table viewer ships next to Wipriss.exe (a separate process: tables never load into the island) -->
     <ProjectReference Include="..\Wipriss.Reader\Wipriss.Reader.csproj" />
     <!-- The voice typing engine ships next to Wipriss.exe (sherpa-onnx and the model load only there) -->
