@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The cleaner's scanner. Wipriss starts it for one search: it takes the inventory of the system
+    (installed programs, services, shortcuts, PATH...), looks through the known caches and the leftovers,
+    writes the findings as JSON lines to stdout and exits. It only reads; it never deletes and runs
+    without administrator rights.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Wipriss.Cleaner</AssemblyName>
+    <RootNamespace>Wipriss.Cleaner</RootNamespace>
+    <ApplicationIcon>..\Wipriss.App\Assets\wipriss.ico</ApplicationIcon>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Wipriss.Tests" />
+  </ItemGroup>
+
+</Project>

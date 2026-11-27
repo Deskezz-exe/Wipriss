@@ -35,6 +35,9 @@
     <ProjectReference Include="..\Wipriss.Reader\Wipriss.Reader.csproj" />
     <!-- The voice typing engine ships next to Wipriss.exe (sherpa-onnx and the model load only there) -->
     <ProjectReference Include="..\Wipriss.Voice\Wipriss.Voice.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Cleaner\Wipriss.Modules.Cleaner.csproj" />
+    <!-- The cleaner's scanner ships next to Wipriss.exe (one search per process, then it exits) -->
+    <ProjectReference Include="..\Wipriss.Cleaner\Wipriss.Cleaner.csproj" />
     <!-- The one-shot admin helper ships next to Wipriss.exe -->
     <ProjectReference Include="..\Wipriss.Helper\Wipriss.Helper.csproj" />
   </ItemGroup>

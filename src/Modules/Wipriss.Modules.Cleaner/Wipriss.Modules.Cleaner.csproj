@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The cleaner's panel. The search runs in Wipriss.Cleaner.exe, which exits when it is done, so the
+       inventory and the folder walk never load into the island. -->
+  <PropertyGroup>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Wipriss.Core\Wipriss.Core.csproj" />
+    <Compile Include="..\..\Wipriss.Cleaner\Protocol.cs" Link="Protocol.cs" />
+  </ItemGroup>
+
+</Project>

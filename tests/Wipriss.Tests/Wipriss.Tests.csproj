@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\Wipriss.Converter\Wipriss.Converter.csproj" />
     <ProjectReference Include="..\..\src\Wipriss.Reader\Wipriss.Reader.csproj" />
     <ProjectReference Include="..\..\src\Wipriss.Voice\Wipriss.Voice.csproj" />
+    <ProjectReference Include="..\..\src\Wipriss.Cleaner\Wipriss.Cleaner.csproj" />
   </ItemGroup>
 
   <!-- Plain parts of the converter window, the Explorer menu and the app, compiled in for testing

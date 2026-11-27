@@ -180,6 +180,9 @@
       "wipriss.capture": {
         "type": "Project"
       },
+      "wipriss.cleaner": {
+        "type": "Project"
+      },
       "wipriss.converter": {
         "type": "Project",
         "dependencies": {

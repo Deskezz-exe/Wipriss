@@ -1,0 +1,6 @@
+<UserControl x:Class="Wipriss.Modules.Cleaner.CleanerPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The cleaner lives in its own window; the panel only opens it and closes. -->
+    <TextBlock Text="Открываю окно очистки…" Style="{StaticResource Caption}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+</UserControl>

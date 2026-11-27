@@ -23,6 +23,7 @@ public partial class App : Application
         new("converter", () => new Wipriss.Modules.Converter.ConverterModule()),
         new("reader", () => new Wipriss.Modules.Tables.TablesModule()),
         new("dictation", () => new Wipriss.Modules.Voice.VoiceModule()),
+        new("cleaner", () => new Wipriss.Modules.Cleaner.CleanerModule()),
     ];
 
     private SingleInstance? _instance;
