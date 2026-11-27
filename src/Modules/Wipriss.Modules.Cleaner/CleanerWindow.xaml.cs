@@ -230,7 +230,7 @@ public partial class CleanerWindow : Window
     {
         var yellow = AllItems.Where(i => i.CanSelect && i.Item.Color == CleanColor.Yellow).ToList();
         long size = yellow.Where(i => i.Item.Size > 0).Sum(i => i.Item.Size);
-        SelectAllText.Text = $"Вместе с зелёным будут выбраны {yellow.Count} пунктов «возможно, важно» ({Sizes.Format(size)}): "
+        SelectAllText.Text = $"Вместе с зелёным будут выбраны {Wipriss.Core.Text.RuText.Count(yellow.Count, "пункт", "пункта", "пунктов")} «возможно, важно» ({Sizes.Format(size)}): "
             + "входы на сайтах, история, модели ИИ, ваши проекты, настройки удалённых программ. Среди них могут быть нужные вам данные. "
             + "Перед удалением лучше пройтись по списку и снять лишнее.";
         SelectAllBox.Visibility = Visibility.Visible;
@@ -280,7 +280,7 @@ public partial class CleanerWindow : Window
         var chosen = AllItems.Where(i => i.IsChecked).ToList();
         if (chosen.Count == 0) return;
         long size = chosen.Where(i => i.Item.Size > 0).Sum(i => i.Item.Size);
-        ConfirmSize.Text = $"Освободится примерно {Sizes.Format(size)} ({chosen.Count} пунктов).";
+        ConfirmSize.Text = $"Освободится примерно {Sizes.Format(size)} ({Wipriss.Core.Text.RuText.Count(chosen.Count, "пункт", "пункта", "пунктов")}).";
         int yellow = chosen.Count(i => i.Item.Color == CleanColor.Yellow);
         ConfirmText.Text = "Файлы удаляются сразу, мимо Корзины, и вернуть их будет нельзя. Занятые программами файлы будут пропущены."
             + (yellow > 0 ? $"\nСреди выбранного {yellow} «возможно, важных»: проверьте, что они вам не нужны." : "");

@@ -139,7 +139,7 @@ public partial class CleanerWindow
     {
         var flow = Flow;
         long total = _allPrograms.Sum(r => Math.Max(0, r.App.Size));
-        ProgramsHint.Text = _allPrograms.Count == 0 ? "" : $"{_allPrograms.Count} программ, вместе {Sizes.Format(total)}";
+        ProgramsHint.Text = _allPrograms.Count == 0 ? "" : $"{Wipriss.Core.Text.RuText.Count(_allPrograms.Count, "программа", "программы", "программ")}, вместе {Sizes.Format(total)}";
         string? empty = flow.Loading && _allPrograms.Count == 0 ? $"Читаю список программ… {flow.ProgressText}"
             : flow.ListError is { } error && _allPrograms.Count == 0 ? error
             : _programRows.Count == 0 && _allPrograms.Count > 0 ? "Ничего не нашлось"
@@ -292,7 +292,7 @@ public partial class CleanerWindow
             long size = chosen.Sum(t => t.ChosenSize);
             int yellow = chosen.Count(t => t.Item.Color == CleanColor.Yellow || t.Children.Any(c => c.Item.Color == CleanColor.Yellow && t.ChosenIds().Contains(c.Item.Id)));
             Set("Удалить выбранные остатки?",
-                $"{count} пунктов" + (size > 0 ? $", освободится примерно {Sizes.Format(size)}" : "") + ". Файлы удаляются сразу, мимо Корзины. Записи реестра сначала копируются: их можно будет вернуть.",
+                Wipriss.Core.Text.RuText.Count(count, "пункт", "пункта", "пунктов") + (size > 0 ? $", освободится примерно {Sizes.Format(size)}" : "") + ". Файлы удаляются сразу, мимо Корзины. Записи реестра сначала копируются: их можно будет вернуть.",
                 "Да, удалить", () => { _confirmTails = false; Flow.DeleteTails(chosen.SelectMany(t => t.ChosenIds()).ToList()); },
                 "Отмена", () => { _confirmTails = false; ShowFlow(); });
             FlowFirst.Style = (Style)FindResource("DangerButton");
