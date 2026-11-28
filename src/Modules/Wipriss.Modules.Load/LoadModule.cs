@@ -193,7 +193,7 @@ public sealed class LoadModule : IModule, IPillSource, IIslandStatus
             if (gpu) Add("GPU", r => r.Gpu);
             Add("RAM", r => r.Ram);
 
-            var net = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+            var net = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(3, 0, 0, 0) };
             var netName = PillLook.Label("Сеть", PillLook.Subtle, 10.5);
             netName.FontFamily = PillLook.SmallFont;
             netName.Margin = new Thickness(0, 1, 6, 0);
@@ -219,7 +219,7 @@ public sealed class LoadModule : IModule, IPillSource, IIslandStatus
 
         private void Add(string label, Func<LoadReading, double> pick)
         {
-            var box = new StackPanel { Margin = new Thickness(0, 0, 18, 0), VerticalAlignment = VerticalAlignment.Center };
+            var box = new StackPanel { Margin = new Thickness(0, 0, 13, 0), VerticalAlignment = VerticalAlignment.Center };
             var line = new StackPanel { Orientation = Orientation.Horizontal };
             var name = PillLook.Label(label, PillLook.Subtle, 10.5);
             name.FontFamily = PillLook.SmallFont;

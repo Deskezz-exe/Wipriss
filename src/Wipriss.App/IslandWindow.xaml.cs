@@ -23,7 +23,7 @@ public partial class IslandWindow : Window
     // The outline inside the Island grid (852 wide; as tall as the open cards need). The spare room around the
     // open shape is for the spring's small overshoot. The closed pill grows to fit what it says.
     private const double OpenWindowWidth = 992, ClosedWindowWidth = 620, PillHeight = 34, PillMinWidth = 120, PillMaxWidth = 580;
-    private const double PillPadding = 14, PillGap = 10, PillGroupGap = 21;
+    private const double PillPadding = 16, PillGap = 10, PillGroupGap = 21;
 
     // The window is only as tall as the pill while closed: a transparent window is redrawn whole, so every
     // figure that changes once a second costs in proportion to the window's area.
@@ -97,6 +97,7 @@ public partial class IslandWindow : Window
         HookCards();
         HookPill();
         ExpandedContent.SizeChanged += OnExpandedSizeChanged;
+        PillRow.SizeChanged += OnPillRowSized;
         IslandKeyboard.Provider = TakeKeyboard;
         SettingsButton.MouseEnter += (_, _) => SettingsButton.Background = (Brush)FindResource("TileHoverBrush");
         SettingsButton.MouseLeave += (_, _) => SettingsButton.Background = (Brush)FindResource("SocketFillBrush");
@@ -307,7 +308,7 @@ public partial class IslandWindow : Window
             // A block that failed to build takes no room and is never kept.
             items.Add(new PillLayout.Item(slots[i].Slot.Group, views[i] is null ? int.MinValue : slots[i].Slot.Priority, width));
         }
-        var keep = PillLayout.Fit(items, PillMaxWidth - 2 * PillPadding, PillGap, PillGroupGap);
+        var keep = PillLayout.Fit(items, PillMaxWidth - 2 * PillPadding - _pillShortfall, PillGap, PillGroupGap);
 
         PillRow.Children.Clear();
         _onPill.Clear();
@@ -327,6 +328,30 @@ public partial class IslandWindow : Window
         if (!_peeking) SetPillWidth(_restWidth);
         UpdateShown();
     }
+
+    /// <summary>
+    /// The pill follows what its row really takes once laid out (fonts, rounding, a view that grew), with a safe
+    /// margin at both ends, so text never reaches the edge. If the row would not fit even at the widest, the
+    /// least important block goes.
+    /// </summary>
+    private void OnPillRowSized(object sender, SizeChangedEventArgs e)
+    {
+        if (!e.WidthChanged || PillRow.Children.Count == 0) return;
+        double actual = e.NewSize.Width;
+        double budget = PillMaxWidth - 2 * PillPadding;
+        if (actual > budget + 0.5)
+        {
+            _pillShortfall = Math.Min(_pillShortfall + (actual - budget), budget / 2);
+            Dispatcher.BeginInvoke(RebuildPill, DispatcherPriority.Background);
+            return;
+        }
+        double width = Math.Clamp(Math.Ceiling(actual) + 2 * PillPadding, PillMinWidth, PillMaxWidth);
+        if (Math.Abs(width - _restWidth) < 0.5) return;
+        _restWidth = width;
+        if (!_peeking) SetPillWidth(_restWidth);
+    }
+
+    private double _pillShortfall;
 
     private static Border GroupDivider() => new()
     {
@@ -472,21 +497,17 @@ public partial class IslandWindow : Window
 
         // Nothing plays: the time and date take the big place.
         EmptyMain.Visibility = MainCard.Content is null ? Visibility.Visible : Visibility.Collapsed;
-        // The right column: its cards one under another, a gap only between shown ones.
-        bool first = true;
-        foreach (var host in new[] { SideTopCard, SideMiddleCard, SideCard })
-        {
-            bool shown = host.Content is not null;
-            host.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
-            if (!shown) continue;
-            host.Margin = new Thickness(0, first ? 0 : 12, 0, 0);
-            first = false;
-        }
-        // No right column at all: the big card takes the whole width.
-        bool anySide = !first;
-        SideColumn.Visibility = anySide ? Visibility.Visible : Visibility.Collapsed;
-        Grid.SetColumnSpan(MainHost, anySide ? 1 : 3);
-        MainColumn.Width = anySide ? new GridLength(430) : new GridLength(1, GridUnitType.Star);
+        // The left column: the to-do list, the timer under it; a gap only between shown ones.
+        bool todo = SideMiddleCard.Content is not null, timer = SideTopCard.Content is not null;
+        SideMiddleCard.Visibility = todo ? Visibility.Visible : Visibility.Collapsed;
+        SideTopCard.Visibility = timer ? Visibility.Visible : Visibility.Collapsed;
+        SideTopCard.Margin = new Thickness(0, todo ? 12 : 0, 0, 0);
+        SideCard.Visibility = SideCard.Content is not null ? Visibility.Visible : Visibility.Collapsed;
+        // No left column at all: the right one takes the whole width.
+        bool left = todo || timer;
+        SideColumn.Visibility = left ? Visibility.Visible : Visibility.Collapsed;
+        Grid.SetColumn(RightColumn, left ? 2 : 0);
+        Grid.SetColumnSpan(RightColumn, left ? 1 : 3);
 
         // The figures are built once per opening: rebuilding them would restart their readings.
         if (StatusHost.Content is not null || DeviceHost.Content is not null) return;
@@ -597,6 +618,7 @@ public partial class IslandWindow : Window
             .Select(m => new TileItem(m))
             .ToList();
         Tiles.ItemsSource = _tiles;
+        UpdateActiveTab();
         if (_expanded) UpdateTiles();
     }
 
@@ -708,6 +730,32 @@ public partial class IslandWindow : Window
         for (var node = source as DependencyObject; node is not null; node = VisualTreeHelper.GetParent(node))
             if (node is FrameworkElement { DataContext: TileItem tile }) return tile;
         return null;
+    }
+
+    /// <summary>Home is open (main screen) or a module's panel is: the dock lights the matching tab.</summary>
+    public void SetActiveModule(string? moduleId)
+    {
+        _activeModule = moduleId;
+        UpdateActiveTab();
+    }
+
+    private string? _activeModule;
+
+    private void UpdateActiveTab()
+    {
+        foreach (var tile in _tiles) tile.IsActive = tile.Info.Id == _activeModule;
+        bool home = _activeModule is null || _tiles.All(t => t.Info.Id != _activeModule);
+        HomeTab.Background = home ? (Brush)FindResource("AccentHoverBrush") : Brushes.Transparent;
+        HomeGlyph.Foreground = (Brush)FindResource(home ? "TextBrush" : "SubtleTextBrush");
+    }
+
+    public event Action? HomeRequested;
+
+    private void Home_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        HomeRequested?.Invoke();
+        SetActiveModule(null);
     }
 
     private void Settings_Click(object sender, MouseButtonEventArgs e)
@@ -836,6 +884,20 @@ public sealed class TileItem(ModuleInfo info) : INotifyPropertyChanged
     public string Description => Info.Description;
     public string Subtitle { get; private set; } = "";
     public bool IsReady { get; private set; }
+
+    /// <summary>Its panel is open now: the tab is lit.</summary>
+    public bool IsActive
+    {
+        get => _active;
+        set
+        {
+            if (_active == value) return;
+            _active = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
+        }
+    }
+
+    private bool _active;
     public Cursor Cursor => IsReady ? Cursors.Hand : Cursors.Arrow;
 
     public event PropertyChangedEventHandler? PropertyChanged;

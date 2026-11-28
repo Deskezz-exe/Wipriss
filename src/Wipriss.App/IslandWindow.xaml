@@ -43,7 +43,13 @@
                     <Border DockPanel.Dock="Left" Background="{StaticResource SocketFillBrush}" CornerRadius="16" Padding="5"
                             VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
-                            <ItemsControl x:Name="Tiles" Focusable="False" Margin="-2,0,0,0">
+                            <!-- Home: active unless a module's panel is open; a click closes that panel -->
+                            <Border x:Name="HomeTab" Width="38" Height="32" CornerRadius="11" Cursor="Hand" ToolTip="Главный экран"
+                                    MouseLeftButtonUp="Home_Click">
+                                <TextBlock x:Name="HomeGlyph" Text="&#xE80F;" FontFamily="{StaticResource IconFont}" FontSize="15"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ItemsControl x:Name="Tiles" Focusable="False" Margin="2,0,0,0">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <StackPanel Orientation="Horizontal" />
@@ -51,7 +57,7 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border x:Name="Tile" Width="40" Height="32" Margin="2,0,0,0" CornerRadius="11" Background="Transparent"
+                                        <Border x:Name="Tile" Width="38" Height="32" Margin="2,0,0,0" CornerRadius="11" Background="Transparent"
                                                 Cursor="{Binding Cursor}" MouseLeftButtonUp="Tile_Click">
                                             <Border.ToolTip>
                                                 <ToolTip>
@@ -71,6 +77,10 @@
                                                 <Setter TargetName="Tile" Property="Background" Value="{StaticResource TileHoverBrush}" />
                                                 <Setter TargetName="GlyphText" Property="Foreground" Value="{StaticResource TextBrush}" />
                                             </Trigger>
+                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                <Setter TargetName="Tile" Property="Background" Value="{StaticResource AccentHoverBrush}" />
+                                                <Setter TargetName="GlyphText" Property="Foreground" Value="{StaticResource TextBrush}" />
+                                            </DataTrigger>
                                             <DataTrigger Binding="{Binding IsReady}" Value="False">
                                                 <Setter TargetName="GlyphText" Property="Foreground" Value="{StaticResource FaintTextBrush}" />
                                             </DataTrigger>
@@ -88,36 +98,44 @@
                         <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="18"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
-                    <ContentControl x:Name="DeviceHost" DockPanel.Dock="Right" Margin="0,0,18,0" VerticalAlignment="Center" Focusable="False" />
-                    <ContentControl x:Name="StatusHost" Margin="24,0,20,0" HorizontalAlignment="Center" VerticalAlignment="Center" Focusable="False" />
+                    <ContentControl x:Name="DeviceHost" DockPanel.Dock="Right" Margin="0,0,16,0" VerticalAlignment="Center" Focusable="False" />
+                    <ContentControl x:Name="StatusHost" Margin="18,0,14,0" HorizontalAlignment="Center" VerticalAlignment="Center" Focusable="False" />
                 </DockPanel>
 
                 <!-- Live cards from modules: the big one on the left, the right column grows with its cards -->
                 <Grid x:Name="Home" Grid.Row="2">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition x:Name="MainColumn" Width="430" />
+                        <ColumnDefinition x:Name="LeftColumn" Width="420" />
                         <ColumnDefinition x:Name="GapColumn" Width="16" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <Grid x:Name="MainHost" MinHeight="290">
-                        <!-- Nothing plays: the time and date -->
-                        <Border x:Name="EmptyMain" Background="{StaticResource TileBrush}" BorderBrush="{StaticResource DividerBrush}"
-                                BorderThickness="1" CornerRadius="18">
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <TextBlock x:Name="BigClock" FontFamily="{StaticResource DisplayFont}" FontSize="56" FontWeight="SemiBold"
-                                           HorizontalAlignment="Center" />
-                                <TextBlock x:Name="DateText" FontSize="14" Foreground="{StaticResource SubtleTextBrush}" HorizontalAlignment="Center" />
-                            </StackPanel>
-                        </Border>
-                        <ContentControl x:Name="MainCard" Focusable="False" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch" />
-                    </Grid>
-
-                    <StackPanel x:Name="SideColumn" Grid.Column="2">
-                        <ContentControl x:Name="SideTopCard" Focusable="False" Height="104" />
-                        <ContentControl x:Name="SideMiddleCard" Focusable="False" Margin="0,12,0,0" />
-                        <ContentControl x:Name="SideCard" Focusable="False" Margin="0,12,0,0" />
+                    <!-- Left: the to-do list (a fixed height, it scrolls inside) and the timer under it -->
+                    <StackPanel x:Name="SideColumn">
+                        <ContentControl x:Name="SideMiddleCard" Focusable="False" />
+                        <ContentControl x:Name="SideTopCard" Focusable="False" Margin="0,12,0,0" />
                     </StackPanel>
+
+                    <!-- Right: music and video (fills the height), the agents under it -->
+                    <Grid x:Name="RightColumn" Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid x:Name="MainHost" MinHeight="210">
+                            <!-- Nothing plays: the time and date -->
+                            <Border x:Name="EmptyMain" Background="{StaticResource TileBrush}" BorderBrush="{StaticResource DividerBrush}"
+                                    BorderThickness="1" CornerRadius="18">
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <TextBlock x:Name="BigClock" FontFamily="{StaticResource DisplayFont}" FontSize="56" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="DateText" FontSize="14" Foreground="{StaticResource SubtleTextBrush}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                            <ContentControl x:Name="MainCard" Focusable="False" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch" />
+                        </Grid>
+                        <ContentControl x:Name="SideCard" Grid.Row="1" Focusable="False" Margin="0,12,0,0" />
+                    </Grid>
                 </Grid>
             </Grid>
         </Grid>

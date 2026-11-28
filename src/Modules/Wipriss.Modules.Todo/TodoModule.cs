@@ -61,7 +61,8 @@ public sealed class TodoModule : IModule, IIslandCard
 internal sealed class TodoCard : Border
 {
     private const double TextSize = 13;
-    private const double MaxListHeight = 250;
+    private const double RowHeight = 28;
+    private const int VisibleRows = 7;
 
     private readonly TodoModule _module;
     private readonly StackPanel _rows = new();
@@ -69,6 +70,7 @@ internal sealed class TodoCard : Border
     private readonly Border _add;
     private readonly TextBox _input;
     private IDisposable? _keyboard;
+    private ScrollViewer? _scroll;
 
     public TodoCard(TodoModule module)
     {
@@ -77,7 +79,7 @@ internal sealed class TodoCard : Border
         BorderBrush = HomeLook.CardEdge;
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(HomeLook.CardRadius);
-        Padding = new Thickness(16, 12, 12, 10);
+        Padding = new Thickness(16, 12, 10, 10);
 
         var root = new StackPanel();
         Child = root;
@@ -93,10 +95,11 @@ internal sealed class TodoCard : Border
         head.Children.Add(HomeLook.Text("Задачи", 13.5, bold: true));
         root.Children.Add(head);
 
-        root.Children.Add(new ScrollViewer
+        root.Children.Add(_scroll = new ScrollViewer
         {
             Content = _rows,
-            MaxHeight = MaxListHeight,
+            // Always as tall as seven one-line tasks, so the island keeps its size; more scroll inside.
+            Height = RowHeight * VisibleRows,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             Focusable = false,
@@ -123,13 +126,13 @@ internal sealed class TodoCard : Border
 
         var addRow = new StackPanel { Orientation = Orientation.Horizontal };
         var plus = HomeLook.Glyph("", 11, PillLook.Subtle);
-        plus.Margin = new Thickness(2, 1, 10, 0);
+        plus.Margin = new Thickness(0, 1, 9, 0);
         addRow.Children.Add(plus);
         addRow.Children.Add(HomeLook.Text("добавить задачу", TextSize, PillLook.Subtle));
         _add = HomeLook.Button(addRow, double.NaN, 30, BeginInput, radius: 9);
         _add.HorizontalAlignment = HorizontalAlignment.Stretch;
-        _add.Padding = new Thickness(4, 0, 8, 0);
-        _add.Margin = new Thickness(-4, 2, 4, 0);
+        _add.Padding = new Thickness(8, 0, 8, 0);
+        _add.Margin = new Thickness(-8, 4, 4, 0);
         addRow.VerticalAlignment = VerticalAlignment.Center;
         root.Children.Add(_add);
 
@@ -145,10 +148,10 @@ internal sealed class TodoCard : Border
         _count.Text = items.Count == 0 ? "" : $"{_module.List.DoneCount} из {items.Count}";
     }
 
-    /// <summary>A bin on the left, the text on the right (wraps, fixed size); a click on the text ticks it.</summary>
+    /// <summary>The text (wraps, fixed size; a click ticks it) and a bin on the right.</summary>
     private FrameworkElement Row(TodoItem item, int index)
     {
-        var row = new DockPanel { Margin = new Thickness(0, 1, 4, 1) };
+        var row = new DockPanel { Margin = new Thickness(0, 0, 4, 0), MinHeight = RowHeight };
         var bin = HomeLook.Button(HomeLook.Glyph("", 12, PillLook.Faint), 26, 26, () =>
         {
             _module.List.Remove(index);
@@ -156,8 +159,8 @@ internal sealed class TodoCard : Border
             Fill();
         }, "Удалить", radius: 8);
         bin.VerticalAlignment = VerticalAlignment.Top;
-        bin.Margin = new Thickness(-4, 1, 6, 0);
-        DockPanel.SetDock(bin, Dock.Left);
+        bin.Margin = new Thickness(6, 1, 0, 0);
+        DockPanel.SetDock(bin, Dock.Right);
         row.Children.Add(bin);
 
         var text = new TextBlock
@@ -172,7 +175,7 @@ internal sealed class TodoCard : Border
         };
         var hit = new Border
         {
-            Child = text, Background = Brushes.Transparent, Cursor = Cursors.Hand, Padding = new Thickness(6, 4, 6, 4),
+            Child = text, Background = Brushes.Transparent, Cursor = Cursors.Hand, Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(-8, 0, 0, 0),
             CornerRadius = new CornerRadius(8), ToolTip = item.Done ? "Вернуть в работу" : "Отметить выполненной",
         };
         hit.MouseEnter += (_, _) => hit.Background = HomeLook.Hover;
@@ -208,6 +211,7 @@ internal sealed class TodoCard : Border
             {
                 _module.Save();
                 Fill();
+                _scroll?.ScrollToEnd();
             }
             _input.Text = ""; // ready for the next one
         }

@@ -68,6 +68,7 @@ public partial class App : Application
         _island = new IslandWindow(_store, _modules);
         _island.SettingsRequested += ShowSettings;
         _island.ModuleRequested += OpenPanel;
+        _island.HomeRequested += () => _flyout?.Close();
         _island.Show();
 
         _hotkeys = new HotkeyService(_island.Handle, _store);
@@ -138,10 +139,15 @@ public partial class App : Application
         var flyout = new FlyoutWindow(module);
         flyout.Closed += (_, _) =>
         {
-            if (_flyout == flyout) _flyout = null;
+            if (_flyout == flyout)
+            {
+                _flyout = null;
+                _island?.SetActiveModule(null);
+            }
             CrashLog.RunWhenIdle(Dispatcher, MemoryTrim.Trim);
         };
         _flyout = flyout;
+        _island?.SetActiveModule(moduleId);
         flyout.Show();
         flyout.Activate();
     }

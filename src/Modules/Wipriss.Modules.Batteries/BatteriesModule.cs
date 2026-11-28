@@ -37,7 +37,7 @@ public sealed class BatteriesModule : IModule, IPillSource, IIslandStatus
         _status.Children.Clear();
         foreach (var d in _devices)
         {
-            var view = new BatteryPill { ToolTip = d.Name, Margin = new Thickness(_status.Children.Count == 0 ? 0 : 16, 0, 0, 0) };
+            var view = new BatteryPill { ToolTip = d.Name, Margin = new Thickness(_status.Children.Count == 0 ? 0 : 12, 0, 0, 0) };
             view.Show(d);
             _status.Children.Add(view);
         }

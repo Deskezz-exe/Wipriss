@@ -71,6 +71,8 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
             _manager = null;
         }
         FollowAll([]);
+        _soon?.Dispose();
+        _soon = null;
         Items = [];
         _pausedTimer?.Stop();
         _pill?.Animate(false);
@@ -231,11 +233,25 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
         _ = RefreshAsync();
     }
 
-    private void OnMediaChanged(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args) => _ = RefreshAsync();
+    private void OnMediaChanged(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args) => RefreshSoon();
 
-    private void OnPlaybackChanged(GlobalSystemMediaTransportControlsSession sender, PlaybackInfoChangedEventArgs args) => _ = RefreshAsync();
+    private void OnPlaybackChanged(GlobalSystemMediaTransportControlsSession sender, PlaybackInfoChangedEventArgs args) => RefreshSoon();
 
-    private void OnTimelineChanged(GlobalSystemMediaTransportControlsSession sender, TimelinePropertiesChangedEventArgs args) => _ = RefreshAsync();
+    private void OnTimelineChanged(GlobalSystemMediaTransportControlsSession sender, TimelinePropertiesChangedEventArgs args) => RefreshSoon();
+
+    // Browsers send a burst of events (one or two a second while music plays): they are read once per burst.
+    private Timer? _soon;
+    private int _soonPending;
+
+    private void RefreshSoon()
+    {
+        if (Interlocked.Exchange(ref _soonPending, 1) == 1) return;
+        _soon ??= new Timer(_ => { Interlocked.Exchange(ref _soonPending, 0); _ = RefreshAsync(); });
+        _soon.Change(300, Timeout.Infinite);
+    }
+
+    // Covers already decoded, by song: a player that repeats its events does not decode them again.
+    private readonly Dictionary<string, (ImageSource? Cover, Color? Tint)> _covers = [];
 
     /// <summary>Reads every source on a worker thread; the UI gets a finished snapshot of the first two.</summary>
     private async Task RefreshAsync()
@@ -261,8 +277,20 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
                 seen[app] = n + 1;
                 string key = app + "#" + n;
                 string title = props.Title.Trim(), artist = props.Artist?.Trim() ?? "";
-                var old = Items.FirstOrDefault(i => i.Key == key && i.Title == title && i.Artist == artist);
-                var (cover, tint) = old is not null ? (old.Cover, old.Tint) : await LoadCoverAsync(props);
+                string song = title + "\n" + artist;
+                (ImageSource? Cover, Color? Tint) art;
+                bool known;
+                lock (_gate) known = _covers.TryGetValue(song, out art);
+                if (!known)
+                {
+                    art = await LoadCoverAsync(props);
+                    lock (_gate)
+                    {
+                        if (_covers.Count >= 6) _covers.Clear();
+                        _covers[song] = art;
+                    }
+                }
+                var (cover, tint) = art;
 
                 var (position, length, at) = Timeline(session);
                 bool playing = playback?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;

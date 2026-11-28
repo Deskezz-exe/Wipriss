@@ -191,15 +191,14 @@ internal sealed class TimerPill : StackPanel
 }
 
 /// <summary>
-/// The home-screen card: the time left in big figures, presets 5 / 15 / 25, reset and start/pause.
-/// It counts seconds only while it is on screen.
+/// The home-screen card: the time left in big figures in the middle with start/pause and reset under them, the
+/// presets 5 / 15 / 25 on the left. It counts seconds only while it is on screen.
 /// </summary>
 internal sealed class TimerCard : Border
 {
     private readonly TimerModule _module;
-    private readonly TextBlock _time, _note;
+    private readonly TextBlock _time;
     private readonly TextBlock _playGlyph;
-    private readonly Border _play;
     private readonly List<(int Minutes, Border Chip, TextBlock Text)> _chips = [];
     private readonly DispatcherTimer _tick;
 
@@ -210,63 +209,49 @@ internal sealed class TimerCard : Border
         BorderBrush = HomeLook.CardEdge;
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(HomeLook.CardRadius);
-        Padding = new Thickness(16, 12, 12, 12);
+        Padding = new Thickness(14, 12, 14, 12);
 
         var grid = new Grid();
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         Child = grid;
 
-        // Top: the icon, the name and what it does now; the figures on the right.
-        var top = new DockPanel();
-        _time = HomeLook.Text("25:00", 26, PillLook.Text, bold: true);
-        _time.FontFamily = HomeLook.DisplayFont;
-        Typography.SetNumeralAlignment(_time, FontNumeralAlignment.Tabular);
-        _time.Margin = new Thickness(0, -4, 4, 0);
-        DockPanel.SetDock(_time, Dock.Right);
-        top.Children.Add(_time);
-
-        var icon = new Border
-        {
-            Width = 30, Height = 30, CornerRadius = new CornerRadius(15), Background = HomeLook.Raised,
-            Child = HomeLook.Glyph("", 14, PillLook.Amber), Margin = new Thickness(0, 0, 10, 0),
-        };
-        DockPanel.SetDock(icon, Dock.Left);
-        top.Children.Add(icon);
-        var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        names.Children.Add(HomeLook.Text("Таймер", 13.5, bold: true));
-        _note = HomeLook.Text("", 11.5, PillLook.Subtle);
-        names.Children.Add(_note);
-        top.Children.Add(names);
-        grid.Children.Add(top);
-
-        // Bottom: presets on the left, reset and start/pause on the right.
-        var bottom = new DockPanel { Margin = new Thickness(0, 10, 0, 0), VerticalAlignment = VerticalAlignment.Bottom };
-        Grid.SetRow(bottom, 1);
-        _playGlyph = HomeLook.Glyph("", 13, Brushes.Black);
-        _play = HomeLook.Button(_playGlyph, 34, 34, () => { _module.Toggle(); Refresh(); }, "Старт / пауза",
-            fill: PillLook.Text, hover: new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF)));
-        DockPanel.SetDock(_play, Dock.Right);
-        bottom.Children.Add(_play);
-        var reset = HomeLook.Button(HomeLook.Glyph("", 13, PillLook.Subtle), 34, 34, () => { _module.Reset(); Refresh(); }, "Сбросить",
-            fill: HomeLook.Raised);
-        reset.Margin = new Thickness(0, 0, 8, 0);
-        DockPanel.SetDock(reset, Dock.Right);
-        bottom.Children.Add(reset);
-
-        var chips = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        // Left: the presets, one under another.
+        var chips = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         foreach (int m in module.PresetMinutes)
         {
             var text = HomeLook.Text($"{m} мин", 12, PillLook.Subtle);
             text.HorizontalAlignment = HorizontalAlignment.Center;
             int minutes = m;
-            var chip = HomeLook.Button(text, 58, 30, () => { _module.Preset(minutes); Refresh(); }, null, fill: HomeLook.Raised, radius: 15);
-            chip.Margin = new Thickness(0, 0, 6, 0);
+            var chip = HomeLook.Button(text, 64, 28, () => { _module.Preset(minutes); Refresh(); }, $"Запустить на {m} минут",
+                fill: HomeLook.Raised, radius: 14);
+            chip.Margin = new Thickness(0, chips.Children.Count == 0 ? 0 : 6, 0, 0);
             chips.Children.Add(chip);
             _chips.Add((m, chip, text));
         }
-        bottom.Children.Add(chips);
-        grid.Children.Add(bottom);
+        grid.Children.Add(chips);
+
+        // Middle: the figures, and the two buttons under them.
+        var center = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(center, 1);
+        _time = HomeLook.Text("25:00", 38, PillLook.Text, bold: true);
+        _time.FontFamily = HomeLook.DisplayFont;
+        _time.HorizontalAlignment = HorizontalAlignment.Center;
+        _time.Margin = new Thickness(0, -6, 0, 0);
+        Typography.SetNumeralAlignment(_time, FontNumeralAlignment.Tabular);
+        center.Children.Add(_time);
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) };
+        _playGlyph = HomeLook.Glyph("", 13, Brushes.Black);
+        var play = HomeLook.Button(_playGlyph, 38, 38, () => { _module.Toggle(); Refresh(); }, "Старт / пауза",
+            fill: PillLook.Text, hover: new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF)));
+        buttons.Children.Add(play);
+        var reset = HomeLook.Button(HomeLook.Glyph("", 13, PillLook.Subtle), 38, 38, () => { _module.Reset(); Refresh(); }, "Начать заново",
+            fill: HomeLook.Raised);
+        reset.Margin = new Thickness(10, 0, 0, 0);
+        buttons.Children.Add(reset);
+        center.Children.Add(buttons);
+        grid.Children.Add(center);
 
         _tick = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(250) };
         _tick.Tick += (_, _) => Refresh();
@@ -277,13 +262,9 @@ internal sealed class TimerCard : Border
     private void Refresh()
     {
         var clock = _module.Clock;
-        var now = DateTime.Now;
-        var left = clock.Left(now);
+        var left = clock.Left(DateTime.Now);
         _time.Text = TimerClock.Format(left);
         _time.Foreground = clock.Running ? PillLook.Text : clock.Paused ? PillLook.Amber : PillLook.Subtle;
-        _note.Text = clock.Running ? $"идёт · до {clock.EndsAt:HH:mm}"
-            : clock.Paused ? "на паузе"
-            : $"{(int)clock.Length.TotalMinutes} минут";
         _playGlyph.Text = clock.Running ? "" : "";
         foreach (var (minutes, chip, text) in _chips)
         {
