@@ -676,6 +676,7 @@ public partial class IslandWindow : Window
     // ---- A dock tab shown inside the island ----
 
     private string? _page;
+    private double _homeHeight = 420;
 
     private List<IIslandPage> PagesFor(string tabId) =>
         [.. ModuleCatalog.All.Select(m => _modules.Get(m.Id)).OfType<IIslandPage>()
@@ -686,8 +687,11 @@ public partial class IslandWindow : Window
     {
         if (_page == tabId) return;
         HomeRequested?.Invoke(); // a module's panel window, if one is open, closes
+        // The tab takes the home screen's height, so switching tabs does not resize the island.
+        if (Home.Visibility == Visibility.Visible && Home.ActualHeight > 0) _homeHeight = Home.ActualHeight;
         DropPage();
         _page = tabId;
+        Page.Height = _homeHeight;
         MainCard.Content = SideTopCard.Content = SideMiddleCard.Content = SideCard.Content = null;
         Home.Visibility = Visibility.Collapsed;
         foreach (var part in PagesFor(tabId))
@@ -695,7 +699,9 @@ public partial class IslandWindow : Window
             try
             {
                 var view = part.CreatePage();
-                if (Page.Children.Count > 0) view.Margin = new Thickness(0, 12, 0, 0);
+                if (Page.Children.Count > 0) Page.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+                Page.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                Grid.SetColumn(view, Page.ColumnDefinitions.Count - 1);
                 Page.Children.Add(view);
             }
             catch (Exception ex) { CrashLog.Write(ex); }
@@ -720,6 +726,7 @@ public partial class IslandWindow : Window
     {
         _page = null;
         Page.Children.Clear();
+        Page.ColumnDefinitions.Clear();
         Page.Visibility = Visibility.Collapsed;
     }
 

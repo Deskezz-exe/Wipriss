@@ -65,9 +65,8 @@ internal sealed partial class ClipboardPage : Border
         head.Children.Add(icon);
         head.Children.Add(HomeLook.Text("Буфер обмена", 13.5, bold: true));
 
-        // The list: always the same height, so the island keeps its size; more entries scroll inside.
-        int visible = SystemParameters.WorkArea.Height >= 860 ? 6 : 4;
-        var list = new Grid { Height = visible * RowHeight + (visible - 1) * RowGap };
+        // The list fills the card (the island gives the tab the home screen's height); more entries scroll inside.
+        var list = new Grid();
         list.Children.Add(new ScrollViewer
         {
             Content = _rows,

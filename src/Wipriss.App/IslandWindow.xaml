@@ -138,8 +138,9 @@
                     </Grid>
                 </Grid>
 
-                <!-- A dock tab that opens right here (the clipboard and notes): its modules' parts, one under another -->
-                <StackPanel x:Name="Page" Grid.Row="2" Visibility="Collapsed" />
+                <!-- A dock tab that opens right here (the clipboard and notes): its modules' parts side by side,
+                     as tall as the home screen was, so the island keeps its size -->
+                <Grid x:Name="Page" Grid.Row="2" Visibility="Collapsed" />
             </Grid>
         </Grid>
 
