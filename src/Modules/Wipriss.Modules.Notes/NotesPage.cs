@@ -19,6 +19,7 @@ internal sealed class NotesPage : Border
     private readonly List<Note> _notes;
     private readonly StackPanel _rows = new();
     private readonly ScrollViewer _scroll;
+    private readonly TextBox _composer;
     private readonly TextBlock _empty;
     private readonly DispatcherTimer _saveDelay;
     private IDisposable? _keyboard;
@@ -55,6 +56,36 @@ internal sealed class NotesPage : Border
         head.Children.Add(icon);
         head.Children.Add(HomeLook.Text("Заметки", 13.5, bold: true));
 
+        // The field for a new note: Enter puts it into the list, Shift+Enter starts a new line.
+        _composer = Box("");
+        var composerHint = Hint("Новая заметка…   Enter — сохранить, Shift+Enter — новая строка", _composer);
+        _composer.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Enter || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) return;
+            e.Handled = true;
+            if (string.IsNullOrWhiteSpace(_composer.Text)) return;
+            _notes.Insert(0, new Note { Text = _composer.Text.Trim() });
+            _composer.Clear(); // ready for the next one, the caret stays here
+            Save();
+            Fill();
+            _scroll!.ScrollToTop();
+        };
+        var composerField = new Grid();
+        composerField.Children.Add(_composer);
+        composerField.Children.Add(composerHint);
+        var composer = new Border
+        {
+            CornerRadius = new CornerRadius(12),
+            Background = HomeLook.Raised,
+            BorderBrush = PillLook.Faint,
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(6, 4, 6, 4),
+            Margin = new Thickness(0, 0, 4, 10),
+            Child = composerField,
+        };
+        DockPanel.SetDock(composer, Dock.Top);
+        root.Children.Add(composer);
+
         // The list fills the card (the island gives the tab the home screen's height); more notes scroll inside.
         var list = new Grid();
         list.Children.Add(_scroll = new ScrollViewer
@@ -64,7 +95,7 @@ internal sealed class NotesPage : Border
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             Focusable = false,
         });
-        _empty = HomeLook.Text("Пока пусто. Нажмите «Новая».", 13, PillLook.Subtle);
+        _empty = HomeLook.Text("Пока пусто. Напишите заметку выше.", 13, PillLook.Subtle);
         _empty.HorizontalAlignment = HorizontalAlignment.Center;
         list.Children.Add(_empty);
         root.Children.Add(list);
@@ -148,53 +179,28 @@ internal sealed class NotesPage : Border
         DockPanel.SetDock(bin, Dock.Right);
         dock.Children.Add(bin);
 
-        var box = new TextBox
-        {
-            Text = note.Text,
-            FontSize = 13.5,
-            Foreground = PillLook.Text,
-            CaretBrush = PillLook.Text,
-            Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0),
-            Padding = new Thickness(6, 5, 6, 5),
-            TextWrapping = TextWrapping.Wrap,
-            AcceptsReturn = true,
-            AcceptsTab = false,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        box.Resources[SystemColors.HighlightBrushKey] = PillLook.Blue;
-
-        // A hint in an empty note.
-        var hint = HomeLook.Text("Текст заметки…", 13.5, PillLook.Faint);
-        hint.IsHitTestVisible = false;
-        hint.VerticalAlignment = VerticalAlignment.Top;
-        hint.Margin = new Thickness(8, 5, 0, 0);
-        hint.Visibility = note.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var box = Box(note.Text);
+        var hint = Hint("Текст заметки…", box);
 
         box.TextChanged += (_, _) =>
         {
-            hint.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
             if (box.Text == note.Text) return;
             note.Text = box.Text;
             note.Updated = DateTime.Now;
             _saveDelay.Stop();
             _saveDelay.Start();
         };
-        // The island does not take the keyboard on a click by itself: ask for it, then put the caret here.
-        box.PreviewMouseLeftButtonDown += (_, _) =>
-        {
-            if (_keyboard is not null) return;
-            TakeKeyboard();
-            Dispatcher.BeginInvoke(() => { box.Focus(); Keyboard.Focus(box); }, DispatcherPriority.Input);
-        };
+        // Enter finishes the note (Shift+Enter is a new line).
         box.PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape)
-            {
-                e.Handled = true;
-                Keyboard.ClearFocus();
-                ReleaseKeyboard();
-            }
+            if (e.Key != Key.Enter || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) return;
+            e.Handled = true;
+            _saveDelay.Stop();
+            Keyboard.ClearFocus();
+            ReleaseKeyboard();
+            if (string.IsNullOrWhiteSpace(note.Text)) _notes.Remove(note);
+            Save();
+            Fill();
         };
 
         var field = new Grid();
@@ -207,13 +213,56 @@ internal sealed class NotesPage : Border
         return row;
     }
 
+    /// <summary>"Новая" puts the caret into the field for a new note.</summary>
     private void AddNote()
     {
-        var note = new Note();
-        _notes.Insert(0, note);
-        Fill(focus: note); // drops the old fields first: a focused one gives the keyboard back
         TakeKeyboard();
-        _scroll.ScrollToTop();
+        Dispatcher.BeginInvoke(() => { _composer.Focus(); Keyboard.Focus(_composer); }, DispatcherPriority.Input);
+    }
+
+    /// <summary>A text field of a note. The island does not take the keyboard on a click by itself: it asks for it here.</summary>
+    private TextBox Box(string text)
+    {
+        var box = new TextBox
+        {
+            Text = text,
+            FontSize = 13.5,
+            Foreground = PillLook.Text,
+            CaretBrush = PillLook.Text,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(6, 5, 6, 5),
+            TextWrapping = TextWrapping.Wrap,
+            AcceptsReturn = true,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        box.Resources[SystemColors.HighlightBrushKey] = PillLook.Blue;
+        box.PreviewMouseLeftButtonDown += (_, _) =>
+        {
+            if (_keyboard is not null) return;
+            TakeKeyboard();
+            Dispatcher.BeginInvoke(() => { box.Focus(); Keyboard.Focus(box); }, DispatcherPriority.Input);
+        };
+        box.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Escape) return;
+            e.Handled = true;
+            Keyboard.ClearFocus();
+            ReleaseKeyboard();
+        };
+        return box;
+    }
+
+    /// <summary>A faint hint over an empty field.</summary>
+    private static TextBlock Hint(string text, TextBox box)
+    {
+        var hint = HomeLook.Text(text, 13.5, PillLook.Faint);
+        hint.IsHitTestVisible = false;
+        hint.VerticalAlignment = VerticalAlignment.Top;
+        hint.Margin = new Thickness(8, 5, 0, 0);
+        hint.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        box.TextChanged += (_, _) => hint.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        return hint;
     }
 
     private void TakeKeyboard() => _keyboard ??= IslandKeyboard.Take();
