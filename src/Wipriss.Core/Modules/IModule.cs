@@ -27,6 +27,15 @@ public interface IModule
     FrameworkElement CreatePanel(IPanelContext panel);
 }
 
+/// <summary>
+/// A module that undoes something outside Wipriss when the user switches it off (not when the app exits).
+/// Called on the UI thread right before <see cref="IModule.Stop"/>.
+/// </summary>
+public interface ISwitchOffAware
+{
+    void SwitchedOff();
+}
+
 /// <summary>What the app offers to modules.</summary>
 public interface IModuleHost
 {

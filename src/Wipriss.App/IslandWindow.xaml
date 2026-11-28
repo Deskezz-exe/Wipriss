@@ -4,7 +4,7 @@
         Title="Wipriss"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True" ShowActivated="False"
-        Width="620" Height="304" UseLayoutRounding="True"
+        Width="780" Height="344" UseLayoutRounding="True"
         FontFamily="{StaticResource UiFont}" Foreground="{StaticResource TextBrush}">
 
     <!--
@@ -13,7 +13,7 @@
         surface through a clip and draws the edge. Changing it only redraws, it never re-lays out
         the content, which is what keeps the animation smooth.
     -->
-    <Grid x:Name="Island" Width="612" Height="294" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,6,0,0"
+    <Grid x:Name="Island" Width="772" Height="338" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,6,0,0"
           MouseEnter="Island_MouseEnter" MouseLeave="Island_MouseLeave"
           AllowDrop="True" DragEnter="Island_DragEnter" DragOver="Island_DragOver" DragLeave="Island_DragLeave"
           Drop="Island_Drop">
@@ -27,80 +27,106 @@
                 <ContentControl x:Name="PeekHost" VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0" Focusable="False" />
             </Grid>
 
-            <Grid x:Name="ExpandedContent" Width="568" Height="262" Margin="0,12,0,0"
+            <Grid x:Name="ExpandedContent" Width="724" Height="294" Margin="0,14,0,0"
                   HorizontalAlignment="Center" VerticalAlignment="Top" Opacity="0" IsHitTestVisible="False" Visibility="Collapsed">
                 <Grid.RenderTransform>
                     <TranslateTransform x:Name="ExpandedShift" Y="-6" />
                 </Grid.RenderTransform>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="30" />
+                    <RowDefinition Height="40" />
+                    <RowDefinition Height="12" />
                     <RowDefinition Height="*" />
-                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <DockPanel Margin="6,0,2,0">
-                    <Viewbox Width="14" Height="14" DockPanel.Dock="Left" VerticalAlignment="Center">
-                        <Path Data="{StaticResource LogoGeometry}" Fill="{StaticResource TextBrush}" />
-                    </Viewbox>
-                    <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE713;"
+                <!-- Top row: the dock of modules on the left; figures, clock and settings on the right -->
+                <DockPanel>
+                    <Border DockPanel.Dock="Left" Background="{StaticResource SocketFillBrush}" CornerRadius="14" Padding="4"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <!-- Home: where we are; the module buttons follow. Files dropped on a button go to that module. -->
+                            <Border Width="38" Height="30" CornerRadius="10" Background="{StaticResource AccentHoverBrush}" ToolTip="Главный экран">
+                                <Viewbox Width="14" Height="14">
+                                    <Path Data="{StaticResource LogoGeometry}" Fill="{StaticResource TextBrush}" />
+                                </Viewbox>
+                            </Border>
+                            <ItemsControl x:Name="Tiles" Focusable="False" Margin="2,0,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="Tile" Width="38" Height="30" Margin="2,0,0,0" CornerRadius="10" Background="Transparent"
+                                                Cursor="{Binding Cursor}" MouseLeftButtonUp="Tile_Click">
+                                            <Border.ToolTip>
+                                                <ToolTip>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                                        <TextBlock Text="{Binding Description}" />
+                                                        <TextBlock Text="{Binding Subtitle}" Foreground="{StaticResource SubtleTextBrush}" />
+                                                    </StackPanel>
+                                                </ToolTip>
+                                            </Border.ToolTip>
+                                            <TextBlock x:Name="GlyphText" Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="15"
+                                                       Foreground="{StaticResource SubtleTextBrush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <Trigger SourceName="Tile" Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Tile" Property="Background" Value="{StaticResource TileHoverBrush}" />
+                                                <Setter TargetName="GlyphText" Property="Foreground" Value="{StaticResource TextBrush}" />
+                                            </Trigger>
+                                            <DataTrigger Binding="{Binding IsReady}" Value="False">
+                                                <Setter TargetName="GlyphText" Property="Foreground" Value="{StaticResource FaintTextBrush}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE713;" VerticalAlignment="Center"
                             ToolTip="Настройки" Click="Settings_Click" />
-                    <TextBlock x:Name="ClockText" DockPanel.Dock="Right" Margin="0,0,10,1" VerticalAlignment="Center"
-                               FontFamily="{StaticResource SmallFont}" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
-                    <TextBlock Text="Wipriss" Margin="9,0,0,1" FontFamily="{StaticResource DisplayFont}" FontSize="14"
-                               FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock x:Name="ClockText" DockPanel.Dock="Right" Margin="14,0,8,1" VerticalAlignment="Center"
+                               FontFamily="{StaticResource DisplayFont}" FontSize="15" FontWeight="SemiBold" />
+                    <ContentControl x:Name="StatusHost" DockPanel.Dock="Right" VerticalAlignment="Center" Focusable="False" />
+                    <Border />
                 </DockPanel>
 
-                <!-- Live cards from modules; an empty home screen shows the date -->
-                <Grid Grid.Row="1" Margin="0,8,0,0">
-                    <UniformGrid x:Name="Cards" Rows="1" />
-                    <StackPanel x:Name="EmptyHome" VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <TextBlock x:Name="BigClock" FontFamily="{StaticResource DisplayFont}" FontSize="40" FontWeight="SemiBold"
-                                   HorizontalAlignment="Center" />
-                        <TextBlock x:Name="DateText" Margin="0,0,0,0" FontSize="13" Foreground="{StaticResource SubtleTextBrush}"
-                                   HorizontalAlignment="Center" />
-                    </StackPanel>
-                </Grid>
+                <!-- Live cards from modules: the big one on the left, short ones on the right -->
+                <Grid x:Name="Home" Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="MainColumn" Width="336" />
+                        <ColumnDefinition x:Name="GapColumn" Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
 
-                <!-- The dock: modules opened by a click. Files dropped on a button go to that module. -->
-                <ItemsControl x:Name="Tiles" Grid.Row="2" Margin="0,10,0,0" Focusable="False">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Rows="1" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border x:Name="Tile" Height="56" Margin="1,0" CornerRadius="10" Background="Transparent"
-                                    Cursor="{Binding Cursor}" MouseLeftButtonUp="Tile_Click">
-                                <Border.ToolTip>
-                                    <ToolTip>
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Description}" />
-                                            <TextBlock Text="{Binding Subtitle}" Foreground="{StaticResource SubtleTextBrush}" />
-                                        </StackPanel>
-                                    </ToolTip>
-                                </Border.ToolTip>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock x:Name="GlyphText" Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="17"
-                                               HorizontalAlignment="Center" />
-                                    <TextBlock x:Name="TitleText" Text="{Binding Title}" Margin="0,6,0,0" FontFamily="{StaticResource SmallFont}"
-                                               FontSize="11" Foreground="{StaticResource SubtleTextBrush}" HorizontalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                            </Border>
-                            <DataTemplate.Triggers>
-                                <Trigger SourceName="Tile" Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Tile" Property="Background" Value="{StaticResource TileHoverBrush}" />
-                                    <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource TextBrush}" />
-                                </Trigger>
-                                <DataTrigger Binding="{Binding IsReady}" Value="False">
-                                    <Setter TargetName="GlyphText" Property="Foreground" Value="{StaticResource FaintTextBrush}" />
-                                    <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource FaintTextBrush}" />
-                                </DataTrigger>
-                            </DataTemplate.Triggers>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    <Grid x:Name="MainHost">
+                        <!-- Nothing plays: the time and date -->
+                        <Border x:Name="EmptyMain" Background="{StaticResource TileBrush}" BorderBrush="{StaticResource DividerBrush}"
+                                BorderThickness="1" CornerRadius="18">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock x:Name="BigClock" FontFamily="{StaticResource DisplayFont}" FontSize="52" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock x:Name="DateText" FontSize="13.5" Foreground="{StaticResource SubtleTextBrush}" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <ContentControl x:Name="MainCard" Focusable="False" />
+                    </Grid>
+
+                    <Grid x:Name="SideColumn" Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <ContentControl x:Name="SideTopCard" Focusable="False" Height="104" />
+                        <Border x:Name="SideGap" Grid.Row="1" Height="10" />
+                        <ContentControl x:Name="SideCard" Grid.Row="2" Focusable="False" />
+                    </Grid>
+                </Grid>
             </Grid>
         </Grid>
 

@@ -72,6 +72,11 @@ internal sealed class ModuleManager : IModuleHost
             }
             else if (!on && _active.Remove(registration.Id, out var running))
             {
+                if (running is ISwitchOffAware aware)
+                {
+                    try { aware.SwitchedOff(); }
+                    catch (Exception ex) { CrashLog.Write(ex); }
+                }
                 TryStop(running);
                 Stopped?.Invoke(registration.Id);
             }

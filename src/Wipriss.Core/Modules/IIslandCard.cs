@@ -2,9 +2,23 @@ using System.Windows;
 
 namespace Wipriss.Core.Modules;
 
+/// <summary>Where a card stands on the home screen.</summary>
+public enum HomeArea
+{
+    /// <summary>The big card on the left (music and video).</summary>
+    Main,
+
+    /// <summary>Top of the right column, a short card (the timer).</summary>
+    SideTop,
+
+    /// <summary>The rest of the right column (agents).</summary>
+    Side,
+}
+
 /// <summary>
 /// A module that shows a live card on the island's home screen. Everything it knows must come from
 /// Windows events (file changes, media events), never from polling. The closed pill is <see cref="IPillSource"/>.
+/// A card may tick (a clock, a progress bar) only while it is loaded: it is dropped when the island closes.
 /// </summary>
 public interface IIslandCard
 {
@@ -16,6 +30,17 @@ public interface IIslandCard
 
     /// <summary>Builds the card. Called when the island opens; the card is dropped when it closes.</summary>
     FrameworkElement CreateCard();
+
+    HomeArea Area => HomeArea.Side;
+}
+
+/// <summary>
+/// A module with small figures in the top row of the open island (CPU, memory…). The view is built when the island
+/// opens and dropped when it closes; the module may update it only while the view is loaded.
+/// </summary>
+public interface IIslandStatus
+{
+    FrameworkElement CreateStatus();
 }
 
 /// <summary>A module with its own page in the Settings window.</summary>

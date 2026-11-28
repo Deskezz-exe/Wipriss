@@ -11,14 +11,19 @@ namespace Wipriss.Modules.Media;
 /// <summary>
 /// What plays right now in any program that reports to Windows (browsers with YouTube, Spotify, players):
 /// the same source as the volume flyout of Windows. Windows tells us about every change by events.
+/// The home screen shows up to two sources at once (say a video and music); the pill shows the first.
 /// </summary>
 public sealed class MediaModule : IModule, IIslandCard, IPillSource
 {
+    private const int MaxShown = 2;
+
     private Dispatcher? _dispatcher;
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
-    private GlobalSystemMediaTransportControlsSession? _session;
+    private readonly object _gate = new();
+    private readonly List<GlobalSystemMediaTransportControlsSession> _followed = [];
+    private readonly Dictionary<string, GlobalSystemMediaTransportControlsSession> _byKey = [];
     private int _generation;
-    private bool _stopped;
+    private bool _stopped, _timelineWatched, _fake;
 
     public ModuleInfo Info { get; } = ModuleCatalog.Get("media");
 
@@ -26,19 +31,30 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
 
     public string Summary => "";
 
+    public HomeArea Area => HomeArea.Main;
+
     public event Action? Changed;
 
-    internal NowPlaying? Current { get; private set; }
+    /// <summary>The first source (the one Windows calls current, or else one that plays).</summary>
+    internal NowPlaying? Current => Items.Count > 0 ? Items[0] : null;
+
+    /// <summary>Up to two sources, the current one first.</summary>
+    internal IReadOnlyList<NowPlaying> Items { get; private set; } = [];
+
+    /// <summary>How many the home screen showed last time: going from one to two plays the split animation.</summary>
+    internal int ShownCount { get; set; }
 
     internal static Geometry Note { get; } = MakeNote();
 
     public void Start(IModuleHost host)
     {
         _dispatcher = host.Dispatcher;
-        // For checks of the layout without playing anything: WIPRISS_FAKE_MEDIA="Song title".
+        // For checks of the layout without playing anything: WIPRISS_FAKE_MEDIA="Song title" (two titles: "A|B").
         if (Environment.GetEnvironmentVariable("WIPRISS_FAKE_MEDIA") is { Length: > 0 } fake)
         {
-            Current = new NowPlaying(fake, "Test", "Test", true, null, false, false);
+            Items = fake.Split('|').Take(MaxShown).Select((t, i) => new NowPlaying("fake" + i, t, i == 0 ? "Test Artist" : "", i == 0 ? "Spotify" : "Chrome",
+                i == 0, null, true, true, i == 0 ? Color.FromRgb(0x8A, 0x2B, 0x5C) : null, TimeSpan.FromSeconds(83), TimeSpan.FromSeconds(214), DateTime.Now)).ToList();
+            _fake = true;
             UpdatePill();
             return;
         }
@@ -50,11 +66,12 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
         _stopped = true;
         if (_manager is not null)
         {
+            _manager.SessionsChanged -= OnSessionsChanged;
             _manager.CurrentSessionChanged -= OnCurrentSessionChanged;
             _manager = null;
         }
-        Follow(null);
-        Current = null;
+        FollowAll([]);
+        Items = [];
         _pausedTimer?.Stop();
         _pill?.Animate(false);
         _pill = null;
@@ -126,22 +143,45 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
         PillChanged?.Invoke();
     }
 
-    public bool HasContent => Current is not null;
+    public bool HasContent => Items.Count > 0;
 
     public FrameworkElement CreateCard() => new MediaCard(this);
 
-    internal async void PlayPause() => await Try(s => s.TryTogglePlayPauseAsync().AsTask());
+    // ---- Buttons ----
 
-    internal async void Next() => await Try(s => s.TrySkipNextAsync().AsTask());
+    internal async void PlayPause(string key) => await Try(key, s => s.TryTogglePlayPauseAsync().AsTask());
 
-    internal async void Previous() => await Try(s => s.TrySkipPreviousAsync().AsTask());
+    internal async void Next(string key) => await Try(key, s => s.TrySkipNextAsync().AsTask());
 
-    private async Task Try(Func<GlobalSystemMediaTransportControlsSession, Task> action)
+    internal async void Previous(string key) => await Try(key, s => s.TrySkipPreviousAsync().AsTask());
+
+    private async Task Try(string key, Func<GlobalSystemMediaTransportControlsSession, Task> action)
     {
-        if (_session is not { } s) return;
+        GlobalSystemMediaTransportControlsSession? s;
+        lock (_gate) _byKey.TryGetValue(key, out s);
+        if (s is null) return;
         try { await action(s); }
         catch (Exception ex) when (ex is not OutOfMemoryException) { }
     }
+
+    /// <summary>
+    /// The progress bar moves by itself between events; position changes (a seek) come as events, but only while
+    /// the card is on screen: with the island closed nothing listens to them.
+    /// </summary>
+    internal void WatchTimeline(bool on)
+    {
+        if (on == _timelineWatched || _fake) return;
+        _timelineWatched = on;
+        lock (_gate)
+            foreach (var s in _followed)
+            {
+                if (on) s.TimelinePropertiesChanged += OnTimelineChanged;
+                else s.TimelinePropertiesChanged -= OnTimelineChanged;
+            }
+        if (on) _ = RefreshAsync();
+    }
+
+    // ---- Following the sessions ----
 
     private async Task ConnectAsync()
     {
@@ -150,8 +190,9 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
             var manager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
             if (_stopped) return;
             _manager = manager;
+            manager.SessionsChanged += OnSessionsChanged;
             manager.CurrentSessionChanged += OnCurrentSessionChanged;
-            Follow(manager.GetCurrentSession());
+            FollowAll(manager.GetSessions());
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -159,21 +200,33 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
         }
     }
 
-    private void OnCurrentSessionChanged(GlobalSystemMediaTransportControlsSessionManager sender, CurrentSessionChangedEventArgs args) =>
-        Follow(sender.GetCurrentSession());
-
-    private void Follow(GlobalSystemMediaTransportControlsSession? session)
+    private void OnSessionsChanged(GlobalSystemMediaTransportControlsSessionManager sender, SessionsChangedEventArgs args)
     {
-        var old = Interlocked.Exchange(ref _session, session);
-        if (old is not null && !ReferenceEquals(old, session))
+        try { FollowAll(sender.GetSessions()); }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { }
+    }
+
+    private void OnCurrentSessionChanged(GlobalSystemMediaTransportControlsSessionManager sender, CurrentSessionChangedEventArgs args) =>
+        _ = RefreshAsync();
+
+    private void FollowAll(IReadOnlyList<GlobalSystemMediaTransportControlsSession> sessions)
+    {
+        lock (_gate)
         {
-            old.MediaPropertiesChanged -= OnMediaChanged;
-            old.PlaybackInfoChanged -= OnPlaybackChanged;
-        }
-        if (session is not null && !ReferenceEquals(old, session))
-        {
-            session.MediaPropertiesChanged += OnMediaChanged;
-            session.PlaybackInfoChanged += OnPlaybackChanged;
+            foreach (var old in _followed.Where(o => !sessions.Any(s => ReferenceEquals(s, o))))
+            {
+                old.MediaPropertiesChanged -= OnMediaChanged;
+                old.PlaybackInfoChanged -= OnPlaybackChanged;
+                if (_timelineWatched) old.TimelinePropertiesChanged -= OnTimelineChanged;
+            }
+            foreach (var s in sessions.Where(n => !_followed.Any(o => ReferenceEquals(o, n))))
+            {
+                s.MediaPropertiesChanged += OnMediaChanged;
+                s.PlaybackInfoChanged += OnPlaybackChanged;
+                if (_timelineWatched) s.TimelinePropertiesChanged += OnTimelineChanged;
+            }
+            _followed.Clear();
+            _followed.AddRange(sessions);
         }
         _ = RefreshAsync();
     }
@@ -182,53 +235,79 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
 
     private void OnPlaybackChanged(GlobalSystemMediaTransportControlsSession sender, PlaybackInfoChangedEventArgs args) => _ = RefreshAsync();
 
-    /// <summary>Reads title, artist, state and a small cover. Runs on a worker thread; the UI gets a finished snapshot.</summary>
+    private void OnTimelineChanged(GlobalSystemMediaTransportControlsSession sender, TimelinePropertiesChangedEventArgs args) => _ = RefreshAsync();
+
+    /// <summary>Reads every source on a worker thread; the UI gets a finished snapshot of the first two.</summary>
     private async Task RefreshAsync()
     {
         int generation = Interlocked.Increment(ref _generation);
-        NowPlaying? next = null;
-        var session = _session;
-        if (session is not null)
+        List<GlobalSystemMediaTransportControlsSession> sessions;
+        lock (_gate) sessions = [.. _followed];
+        GlobalSystemMediaTransportControlsSession? current = null;
+        try { current = _manager?.GetCurrentSession(); }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { }
+
+        var found = new List<(NowPlaying Item, GlobalSystemMediaTransportControlsSession Session, int Rank)>();
+        var seen = new Dictionary<string, int>();
+        foreach (var session in sessions)
         {
             try
             {
                 var props = await session.TryGetMediaPropertiesAsync();
+                if (props is null || string.IsNullOrWhiteSpace(props.Title)) continue;
                 var playback = session.GetPlaybackInfo();
-                if (props is not null && !string.IsNullOrWhiteSpace(props.Title))
-                {
-                    var cover = Current is { } prev && prev.Title == props.Title && prev.Artist == props.Artist
-                        ? prev.Cover
-                        : await LoadCoverAsync(props);
-                    next = new NowPlaying(
-                        props.Title.Trim(),
-                        props.Artist?.Trim() ?? "",
-                        AppName(session.SourceAppUserModelId),
-                        playback?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing,
-                        cover,
-                        playback?.Controls.IsNextEnabled == true,
-                        playback?.Controls.IsPreviousEnabled == true);
-                }
+                string app = session.SourceAppUserModelId ?? "";
+                int n = seen.GetValueOrDefault(app);
+                seen[app] = n + 1;
+                string key = app + "#" + n;
+                string title = props.Title.Trim(), artist = props.Artist?.Trim() ?? "";
+                var old = Items.FirstOrDefault(i => i.Key == key && i.Title == title && i.Artist == artist);
+                var (cover, tint) = old is not null ? (old.Cover, old.Tint) : await LoadCoverAsync(props);
+
+                var (position, length, at) = Timeline(session);
+                bool playing = playback?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+                var item = new NowPlaying(key, title, artist, AppName(app), playing, cover,
+                    playback?.Controls.IsNextEnabled == true, playback?.Controls.IsPreviousEnabled == true, tint, position, length, at);
+                int rank = ReferenceEquals(session, current) ? 0 : playing ? 1 : 2;
+                found.Add((item, session, rank));
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                next = null;
-            }
+            catch (Exception ex) when (ex is not OutOfMemoryException) { }
         }
 
+        var top = found.OrderBy(f => f.Rank).Take(MaxShown).ToList();
         if (generation != _generation || _stopped) return; // a newer refresh is on its way
         _dispatcher?.BeginInvoke(() =>
         {
             if (generation != _generation || _stopped) return;
-            if (next == Current) return;
-            Current = next;
+            lock (_gate)
+            {
+                _byKey.Clear();
+                foreach (var f in found) _byKey[f.Item.Key] = f.Session;
+            }
+            var next = top.Select(f => f.Item).ToList();
+            if (next.SequenceEqual(Items)) return;
+            Items = next;
             UpdatePill();
             Changed?.Invoke();
         });
     }
 
-    private static async Task<ImageSource?> LoadCoverAsync(GlobalSystemMediaTransportControlsSessionMediaProperties props)
+    private static (TimeSpan Position, TimeSpan Length, DateTime At) Timeline(GlobalSystemMediaTransportControlsSession session)
     {
-        if (props.Thumbnail is null) return null;
+        try
+        {
+            var t = session.GetTimelineProperties();
+            var length = t.EndTime - t.StartTime;
+            if (length <= TimeSpan.Zero || length > TimeSpan.FromHours(24)) return (TimeSpan.Zero, TimeSpan.Zero, DateTime.Now);
+            var at = t.LastUpdatedTime.Year > 2000 ? t.LastUpdatedTime.LocalDateTime : DateTime.Now;
+            return (t.Position - t.StartTime, length, at);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { return (TimeSpan.Zero, TimeSpan.Zero, DateTime.Now); }
+    }
+
+    private static async Task<(ImageSource?, Color?)> LoadCoverAsync(GlobalSystemMediaTransportControlsSessionMediaProperties props)
+    {
+        if (props.Thumbnail is null) return (null, null);
         try
         {
             using var winStream = await props.Thumbnail.OpenReadAsync();
@@ -239,15 +318,15 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
             var image = new BitmapImage();
             image.BeginInit();
             image.CacheOption = BitmapCacheOption.OnLoad;
-            image.DecodePixelWidth = 112; // the cover is 56 px; keep it small in memory
+            image.DecodePixelWidth = 160; // the cover is 72 px; keep it small in memory
             image.StreamSource = copy;
             image.EndInit();
             image.Freeze();
-            return image;
+            return (image, CoverColor.Of(image));
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            return null;
+            return (null, null);
         }
     }
 
@@ -287,4 +366,18 @@ public sealed class MediaModule : IModule, IIslandCard, IPillSource
     }
 }
 
-internal sealed record NowPlaying(string Title, string Artist, string App, bool Playing, ImageSource? Cover, bool CanNext, bool CanPrevious);
+/// <param name="Key">Which source, for the buttons.</param>
+/// <param name="Tint">The cover's main colour, for the card's background.</param>
+/// <param name="Position">Where it was at <paramref name="PositionAt"/>.</param>
+/// <param name="Length">Zero when the program does not say.</param>
+internal sealed record NowPlaying(string Key, string Title, string Artist, string App, bool Playing, ImageSource? Cover,
+    bool CanNext, bool CanPrevious, Color? Tint, TimeSpan Position, TimeSpan Length, DateTime PositionAt)
+{
+    /// <summary>Where it is now: it moves on by itself while it plays.</summary>
+    public TimeSpan PositionNow(DateTime now)
+    {
+        if (Length <= TimeSpan.Zero) return TimeSpan.Zero;
+        var p = Playing ? Position + (now - PositionAt) : Position;
+        return p < TimeSpan.Zero ? TimeSpan.Zero : p > Length ? Length : p;
+    }
+}

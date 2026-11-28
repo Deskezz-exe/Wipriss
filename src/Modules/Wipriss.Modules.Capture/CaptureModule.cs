@@ -10,7 +10,7 @@ namespace Wipriss.Modules.Capture;
 /// Screenshots on PrtSc. A small keyboard hook takes the key before Windows' Snipping Tool, so switching it on works
 /// at once; a registered hotkey covers programs running as administrator. Nothing is polled while idle. A screenshot lives only in memory and on the clipboard until you press "Сохранить".
 /// </summary>
-public sealed class CaptureModule : IModule
+public sealed class CaptureModule : IModule, ISwitchOffAware
 {
     private const int ShotKey = 1, StopKey = 2;
 
@@ -37,9 +37,39 @@ public sealed class CaptureModule : IModule
     internal PrintScreenKey PrintScreen { get; } = new();
 
     public string Summary =>
-        !PrintScreen.OwnedByWipriss ? "у «Ножниц»"
-        : HookActive || KeyRegistered ? "по PrtSc"
-        : "PrtSc занят";
+        HookActive || KeyRegistered ? "по " + Wipriss.Core.Ui.HotkeyRow.Pretty(PrintScreen.Key)
+        : "клавиша занята";
+
+    /// <summary>The module is switched off: PrtSc goes back to Snipping Tool.</summary>
+    public void SwitchedOff()
+    {
+        try { PrintScreen.Apply(moduleOn: false); }
+        catch (Exception ex) { ErrorLog.Write(ex); }
+    }
+
+    /// <summary>A new screenshot key from Settings. Works at once.</summary>
+    internal void SetKey(Wipriss.Core.Input.Hotkey key)
+    {
+        PrintScreen.Choose(key);
+        ReleaseKey();
+        TakeKey();
+    }
+
+    /// <summary>While Settings records a new key, the old one must not take screenshots.</summary>
+    internal void PauseKey(bool paused, Action<int>? printScreen = null)
+    {
+        if (_hook is not null)
+        {
+            _hook.Recorder = paused ? printScreen : null;
+            _hook.Paused = paused;
+        }
+        if (paused && _hotkeys is not null && KeyRegistered)
+        {
+            Native.UnregisterHotKey(_hotkeys.Handle, ShotKey);
+            KeyRegistered = false;
+        }
+        else if (!paused) TakeKey();
+    }
 
     public void Start(IModuleHost host)
     {
@@ -58,23 +88,18 @@ public sealed class CaptureModule : IModule
             ErrorLog.Write(ex);
         }
 
-        if (PrintScreen.OwnedByWipriss) TakeKey();
-    }
-
-    /// <summary>The switch in the panel: PrtSc for Wipriss (on) or back to Snipping Tool (off). Works at once.</summary>
-    internal void SetOwnPrintScreen(bool wipriss)
-    {
-        PrintScreen.Choose(wipriss);
-        if (wipriss) TakeKey();
-        else ReleaseKey();
+        TakeKey();
     }
 
     private void TakeKey()
     {
+        var key = PrintScreen.Key;
         // The hook calls back on its own thread; the capture itself runs on the UI thread.
         _hook ??= new PrintScreenHook(() => _dispatcher?.BeginInvoke(TakeScreenshot));
+        _hook.Key = key;
+        _hook.Paused = false;
         if (_hotkeys is not null && !KeyRegistered)
-            KeyRegistered = Native.RegisterHotKey(_hotkeys.Handle, ShotKey, Native.MOD_NOREPEAT, Native.VK_SNAPSHOT);
+            KeyRegistered = Native.RegisterHotKey(_hotkeys.Handle, ShotKey, (uint)key.Modifiers | Native.MOD_NOREPEAT, (uint)key.Key);
     }
 
     private void ReleaseKey()

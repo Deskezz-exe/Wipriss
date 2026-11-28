@@ -62,6 +62,12 @@ internal sealed partial class BluetoothBatteries : IDisposable
         get { lock (_gate) return _devices.Values.Any(IsConnected); }
     }
 
+    /// <summary>Connected devices, one per address (a device paired as classic and LE counts once).</summary>
+    public int ConnectedCount
+    {
+        get { lock (_gate) return _devices.Values.Where(IsConnected).Select(Address).Distinct().Count(); }
+    }
+
     /// <summary>Connected devices that report a charge. Runs on a worker thread.</summary>
     public List<BatteryDevice> Read()
     {

@@ -12,8 +12,15 @@ namespace Wipriss.Modules.Agents;
 /// transcripts under %USERPROFILE%\.claude\projects). A file watcher tells us when a transcript grows;
 /// only the new bytes are read, on a worker thread. Nothing runs while no session is active.
 /// </summary>
-public sealed class AgentsModule : IModule, IIslandCard, IPillSource, ISettingsPage
+public sealed class AgentsModule : IModule, IIslandCard, IPillSource, ISettingsPage, ISwitchOffAware
 {
+    /// <summary>The user switched Agents off: our hook leaves their agents' settings.</summary>
+    public void SwitchedOff()
+    {
+        try { HookSetup.Disconnect(); }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { }
+    }
+
     /// <summary>A session silent for this long has stopped (closed window, crash) even if its last line said "working".</summary>
     private static readonly TimeSpan Stale = TimeSpan.FromMinutes(10);
 
@@ -69,6 +76,12 @@ public sealed class AgentsModule : IModule, IIslandCard, IPillSource, ISettingsP
         _listen = new CancellationTokenSource();
         _ = ListenAsync(_listen.Token);
         WatchCodex();
+        // The hook goes in by itself (or gets the new path after Wipriss moved): the owner asked for no buttons.
+        Task.Run(() =>
+        {
+            try { HookSetup.Connect(); }
+            catch (Exception ex) when (ex is not OutOfMemoryException) { }
+        });
 
         if (!Directory.Exists(_root)) return; // Claude Code is not installed: its transcripts stay silent
 
@@ -125,7 +138,7 @@ public sealed class AgentsModule : IModule, IIslandCard, IPillSource, ISettingsP
         _states.Clear();
     }
 
-    public FrameworkElement CreatePanel(IPanelContext panel) => new AgentCard(this);
+    public FrameworkElement CreatePanel(IPanelContext panel) => new AgentBlocks(this);
 
     public FrameworkElement CreateSettings() => new AgentsSettings();
 
@@ -325,9 +338,50 @@ public sealed class AgentsModule : IModule, IIslandCard, IPillSource, ISettingsP
         if (fresh) _dispatcher?.BeginInvoke(Raise);
     }
 
-    public bool HasContent => Visible(DateTime.Now).Count > 0;
+    public bool HasContent => HookSetup.ClaudeInstalled || HookSetup.CodexInstalled || Visible(DateTime.Now).Count > 0;
 
-    public FrameworkElement CreateCard() => new AgentCard(this);
+    public FrameworkElement CreateCard() => new AgentBlocks(this);
+
+    /// <summary>The agents for the home screen (installed or active), at most two, with what each does now.</summary>
+    internal List<AgentView> HomeAgents(DateTime now)
+    {
+        var states = CurrentStates(now);
+        var visible = Visible(now);
+        var list = new List<AgentView>();
+
+        if (HookSetup.ClaudeInstalled || visible.Count > 0)
+        {
+            var (state, project) = states["claude"];
+            var working = visible.FirstOrDefault(v => v.Phase == Phase.Working);
+            if (project.Length == 0) project = visible.FirstOrDefault()?.Project ?? "";
+            var status = state switch
+            {
+                AgentState.Working => AgentStatus.Working,
+                AgentState.Waiting => AgentStatus.Waiting,
+                _ when visible.Count > 0 => AgentStatus.Idle,
+                _ => AgentStatus.Inactive,
+            };
+            list.Add(new AgentView("claude", status, project, working?.Doing ?? ""));
+        }
+
+        if (HookSetup.CodexInstalled)
+        {
+            var (state, project) = states["codex"];
+            bool recent;
+            lock (_gate) recent = _codexDone is { } done && now - done < KeepFinished || _codexWorking is { } w && now - w < KeepFinished;
+            var status = state switch
+            {
+                AgentState.Working => AgentStatus.Working,
+                AgentState.Waiting => AgentStatus.Waiting,
+                _ when recent => AgentStatus.Idle,
+                _ => AgentStatus.Inactive,
+            };
+            list.Add(new AgentView("codex", status, project, ""));
+        }
+
+        // The busy ones first when there are more than fit.
+        return list.OrderBy(a => a.Status).Take(2).OrderBy(a => a.Agent == "claude" ? 0 : 1).ToList();
+    }
 
     /// <summary>Sessions worth showing, most important first: working, then the most recent.</summary>
     internal List<SessionView> Visible(DateTime now)
@@ -506,5 +560,10 @@ public sealed class AgentsModule : IModule, IIslandCard, IPillSource, ISettingsP
         }
     }
 }
+
+/// <summary>What the home screen says about an agent. The order is the order of urgency.</summary>
+internal enum AgentStatus { Waiting, Working, Idle, Inactive }
+
+internal sealed record AgentView(string Agent, AgentStatus Status, string Project, string Doing);
 
 internal sealed record SessionView(string Project, Phase Phase, string Headline, string Doing, Step[] Steps, DateTime LastEvent);

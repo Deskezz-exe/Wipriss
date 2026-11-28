@@ -73,13 +73,22 @@ public partial class VoicePanel : UserControl
         if (!_module.BeginCapture(OnCaptured)) return;
         _capturing = true;
         ChangeKeyButton.IsEnabled = false;
+        CancelKeyButton.Visibility = Visibility.Visible;
         KeyText.Text = "Нажмите клавиши…";
-        KeyHint.Text = "Зажмите 1–3 клавиши вместе и отпустите. Esc — отмена.";
+        KeyHint.Text = "Зажмите 1–3 клавиши вместе и отпустите. Esc или «Отмена» — оставить как было.";
+    }
+
+    private void CancelKey_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_capturing) return;
+        _module.CancelCapture();
+        OnCaptured(null);
     }
 
     private void OnCaptured(List<int>? keys)
     {
         _capturing = false;
+        CancelKeyButton.Visibility = Visibility.Collapsed;
         KeyHint.Text = "Нажмите — говорите — нажмите ещё раз. Esc отменяет.";
         if (IsLoaded) ShowAll();
     }

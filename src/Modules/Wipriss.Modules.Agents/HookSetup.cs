@@ -6,10 +6,14 @@ using System.Text.Json.Nodes;
 
 namespace Wipriss.Modules.Agents;
 
+/// <summary>Where the hook stands for one agent.</summary>
+public enum HookState { NotFound, Connected, Off, OldPath, Broken, Busy, Failed, NoHookFile }
+
 /// <summary>
-/// Adds or removes Wipriss's hook in the agents' own settings. Only when the user presses the button: these are
-/// their files. Everything else in the file is kept, a copy of the old file is saved next to it first, and the new
-/// one replaces it in one step. Our entry is recognised by the hook's file name.
+/// Adds or removes Wipriss's hook in the agents' own settings: on its own when the Agents module starts (the owner
+/// asked for no buttons) and out again when the module is switched off. Everything else in the file is kept, a copy
+/// of the old file is saved next to it first, and the new one replaces it in one step. The file is written only
+/// when our entry is missing or points to an old place. Our entry is recognised by the hook's file name.
 /// </summary>
 public static class HookSetup
 {
@@ -190,6 +194,88 @@ public static class HookSetup
     }
 
     private static IEnumerable<string> Lines(string text) => text.Replace("\r\n", "\n").Split('\n');
+
+    // ---- On its own: at start (and when the exe moved), off when the module is switched off ----
+
+    /// <summary>True when the file already runs exactly this hook, so nothing needs writing.</summary>
+    public static bool ClaudeHookIsCurrent(string? json, string hookPath)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return false;
+        try
+        {
+            if (JsonNode.Parse(json, documentOptions: ReadOptions) is not JsonObject root) return false;
+            var ours = Ours(root).ToList();
+            return ours.Count == 1 && ours[0].Entry["command"]?.GetValue<string>() == ClaudeCommand(hookPath);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException) { return false; }
+    }
+
+    public static bool CodexNotifyIsCurrent(string? toml, string hookPath) =>
+        toml is not null && Lines(toml).Count(l => IsNotify(l) && l.Contains(HookFile, StringComparison.OrdinalIgnoreCase)) == 1
+        && Lines(toml).Any(l => IsNotify(l) && l.Contains($"'{hookPath}'", StringComparison.Ordinal));
+
+    /// <summary>Adds the hook for every agent found, or fixes its path. Writes only what must change. Runs on a worker thread.</summary>
+    public static (HookState Claude, HookState Codex) Connect()
+    {
+        string hook = HookPath;
+        bool hasExe = File.Exists(hook);
+        var claude = !ClaudeInstalled ? HookState.NotFound
+            : Apply(ClaudeSettingsFile, hasExe, t => ClaudeHookIsCurrent(t, hook), t => AddClaudeHook(t, hook));
+        var codex = !CodexInstalled ? HookState.NotFound
+            : Apply(CodexConfigFile, hasExe, t => CodexNotifyIsCurrent(t, hook), t => AddCodexNotify(t, hook));
+        return (claude, codex);
+    }
+
+    /// <summary>Takes our hook out of both agents' settings (the user switched the module off).</summary>
+    public static void Disconnect()
+    {
+        foreach (var (file, has, remove) in new (string, Func<string, bool>, Func<string, string>)[]
+                 {
+                     (ClaudeSettingsFile, HasClaudeHook, RemoveClaudeHook),
+                     (CodexConfigFile, HasCodexNotify, RemoveCodexNotify),
+                 })
+        {
+            try
+            {
+                if (!File.Exists(file) || !has(File.ReadAllText(file))) continue;
+                Change(file, old => old is null ? "" : remove(old));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException) { }
+        }
+    }
+
+    /// <summary>What the Settings page shows. Reads only.</summary>
+    public static (HookState Claude, HookState Codex) Inspect()
+    {
+        string hook = HookPath;
+        HookState Look(bool installed, string file, Func<string?, bool> current, Func<string?, bool> any)
+        {
+            if (!installed) return HookState.NotFound;
+            try
+            {
+                string? text = File.Exists(file) ? File.ReadAllText(file) : null;
+                return current(text) ? HookState.Connected : any(text) ? HookState.OldPath : HookState.Off;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return HookState.Failed; }
+        }
+        return (Look(ClaudeInstalled, ClaudeSettingsFile, t => ClaudeHookIsCurrent(t, hook), HasClaudeHook),
+                Look(CodexInstalled, CodexConfigFile, t => CodexNotifyIsCurrent(t, hook), HasCodexNotify));
+    }
+
+    private static HookState Apply(string file, bool hasExe, Func<string?, bool> current, Func<string?, string> add)
+    {
+        try
+        {
+            string? text = File.Exists(file) ? File.ReadAllText(file) : null;
+            if (current(text)) return HookState.Connected;
+            if (!hasExe) return HookState.NoHookFile;
+            Change(file, add);
+            return HookState.Connected;
+        }
+        catch (FormatException) { return HookState.Broken; }
+        catch (InvalidOperationException) { return HookState.Busy; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return HookState.Failed; }
+    }
 
     // ---- Files ----
 

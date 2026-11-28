@@ -16,7 +16,6 @@ internal sealed class MediaPill : StackPanel
     private const double TitleWidth = 150;
     private static readonly double[] BarPeriods = [0.42, 0.55, 0.36, 0.48];
 
-    private readonly Border _cover;
     private readonly TextBlock _title;
     private readonly ScaleTransform[] _bars = new ScaleTransform[BarPeriods.Length];
     private bool _animating;
@@ -26,12 +25,9 @@ internal sealed class MediaPill : StackPanel
         Orientation = Orientation.Horizontal;
         VerticalAlignment = VerticalAlignment.Center;
 
-        _cover = new Border
-        {
-            Width = 18, Height = 18, CornerRadius = new CornerRadius(4), ClipToBounds = true,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Children.Add(_cover);
+        var note = PillLook.IconView(PillLook.MusicNote, PillLook.Subtle, 13);
+        note.VerticalAlignment = VerticalAlignment.Center;
+        Children.Add(note);
 
         _title = PillLook.Label("");
         _title.Margin = new Thickness(8, 0, 9, 1);
@@ -55,15 +51,6 @@ internal sealed class MediaPill : StackPanel
     /// <summary>Shows the song. Returns true when the block's width may have changed.</summary>
     public bool Show(NowPlaying now)
     {
-        if (now.Cover is { } image)
-            _cover.Child = new Rectangle { RadiusX = 4, RadiusY = 4, Fill = new ImageBrush(image) { Stretch = Stretch.UniformToFill } };
-        else
-        {
-            _cover.Background = PillLook.Faint.Clone();
-            _cover.Background.Opacity = 0.35;
-            _cover.Child = PillLook.IconView(PillLook.MusicNote, PillLook.Subtle, 11);
-        }
-
         _title.Foreground = now.Playing ? PillLook.Text : PillLook.Subtle;
         _title.ToolTip = null;
         string old = _title.Text;

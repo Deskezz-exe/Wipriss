@@ -39,6 +39,8 @@ internal sealed class HotkeyService : IDisposable
     public static string Current(AppSettings settings, string moduleId) =>
         settings.HotkeyFor(moduleId, Defaults.GetValueOrDefault(moduleId, ""));
 
+    public static string Default(string moduleId) => Defaults.GetValueOrDefault(moduleId, "");
+
     /// <summary>The key is taken by another program (or Windows).</summary>
     public bool IsTaken(string moduleId) => _failed.Contains(moduleId);
 

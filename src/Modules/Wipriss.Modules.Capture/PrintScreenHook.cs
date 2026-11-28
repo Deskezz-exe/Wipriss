@@ -60,19 +60,50 @@ internal sealed class PrintScreenHook : IDisposable
         _hook = IntPtr.Zero;
     }
 
+    /// <summary>The combination to catch. PrtSc alone also takes Alt+PrtSc and the like, as before.</summary>
+    public Wipriss.Core.Input.Hotkey Key { get; set; } = Wipriss.Core.Input.Hotkey.PrtSc;
+
+    /// <summary>While the user records a new key in Settings, every key passes through.</summary>
+    public volatile bool Paused;
+
     private IntPtr OnKey(int code, IntPtr message, IntPtr data)
     {
         // Only the virtual-key code is read (the first field of KBDLLHOOKSTRUCT).
-        if (code >= 0 && Marshal.ReadInt32(data) == VK_SNAPSHOT)
+        var key = Key;
+        // While Settings records a new key, PrtSc must not reach Snipping Tool (and windows never see its key-down):
+        // it is kept here and handed to the recorder with the modifiers held.
+        if (code >= 0 && Paused && Recorder is { } record && Marshal.ReadInt32(data) == VK_SNAPSHOT)
+        {
+            if (message == WM_KEYDOWN || message == WM_SYSKEYDOWN) record(CurrentModifiers());
+            return 1;
+        }
+        if (code >= 0 && !Paused && Marshal.ReadInt32(data) == key.Key)
         {
             bool down = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
+            if (down && !_down && !ModifiersMatch(key)) return CallNextHookEx(IntPtr.Zero, code, message, data);
+            if (!down && !_down) return CallNextHookEx(IntPtr.Zero, code, message, data);
             if (down && !_down) _pressed(); // once per press, not for auto-repeat
             _down = down;
-            return 1; // keep PrtSc from reaching Snipping Tool
+            return 1; // keep the key from reaching Snipping Tool or the window below
         }
 
         return CallNextHookEx(IntPtr.Zero, code, message, data);
     }
+
+    /// <summary>Set while recording: gets the modifiers held with PrtSc (called on the hook thread).</summary>
+    public volatile Action<int>? Recorder;
+
+    private static bool ModifiersMatch(Wipriss.Core.Input.Hotkey key) =>
+        key.Key == VK_SNAPSHOT && key.Modifiers == 0 || CurrentModifiers() == key.Modifiers;
+
+    private static int CurrentModifiers()
+    {
+        static bool Down(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
+        return (Down(0x11) ? Wipriss.Core.Input.Hotkey.Ctrl : 0) | (Down(0x12) ? Wipriss.Core.Input.Hotkey.Alt : 0)
+               | (Down(0x10) ? Wipriss.Core.Input.Hotkey.Shift : 0) | (Down(0x5B) || Down(0x5C) ? Wipriss.Core.Input.Hotkey.Win : 0);
+    }
+
+    [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vk);
 
     private delegate IntPtr HookProc(int code, IntPtr message, IntPtr data);
 

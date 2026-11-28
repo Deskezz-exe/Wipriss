@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -20,16 +20,16 @@ namespace Wipriss.App;
 /// </summary>
 public partial class IslandWindow : Window
 {
-    // The outline inside the Island grid (612 x 294). The spare room around the open shape
+    // The outline inside the Island grid (772 x 330). The spare room around the open shape
     // is for the spring's small overshoot. The closed pill grows to fit what it says.
-    private const double IslandWidth = 612, PillHeight = 34, PillMinWidth = 120, PillMaxWidth = 580;
+    private const double IslandWidth = 772, PillHeight = 34, PillMinWidth = 120, PillMaxWidth = 580;
     private const double PillPadding = 14, PillGap = 10, PillGroupGap = 21;
 
     // The window is only as tall as the pill while closed: a transparent window is redrawn whole, so every
     // figure that changes once a second costs in proportion to the window's area.
-    private const double OpenWindowHeight = 304, ClosedWindowHeight = 6 + PillHeight + 6;
-    private static readonly Rect ExpandedRect = new(8, 0, 596, 284);
-    private const double CollapsedRadius = 17, ExpandedRadius = 22;
+    private const double OpenWindowHeight = 344, ClosedWindowHeight = 6 + PillHeight + 6;
+    private static readonly Rect ExpandedRect = new(8, 0, 756, 326);
+    private const double CollapsedRadius = 17, ExpandedRadius = 28;
     private const double ContentRestOffset = -6;
 
     private static readonly IEasingFunction OpenEase = new SpringEase(damping: 0.78, frequency: 7);
@@ -424,28 +424,54 @@ public partial class IslandWindow : Window
     /// <summary>Builds the cards that have something to show. Only while the island is open.</summary>
     private void BuildCards()
     {
-        Cards.Children.Clear();
+        MainCard.Content = null;
+        SideTopCard.Content = null;
+        SideCard.Content = null;
         foreach (var card in _cards)
         {
             bool has;
-            try { has = card.HasContent; } catch (Exception ex) { CrashLog.Write(ex); has = false; }
+            HomeArea area;
+            try { has = card.HasContent; area = card.Area; } catch (Exception ex) { CrashLog.Write(ex); continue; }
             if (!has) continue;
-            try
-            {
-                Cards.Children.Add(new Border
-                {
-                    Background = (Brush)FindResource("TileBrush"),
-                    BorderBrush = (Brush)FindResource("DividerBrush"),
-                    BorderThickness = new Thickness(1),
-                    CornerRadius = new CornerRadius(14),
-                    Padding = new Thickness(14, 12, 14, 12),
-                    Margin = new Thickness(3, 0, 3, 0),
-                    Child = card.CreateCard(),
-                });
-            }
+            var host = area switch { HomeArea.Main => MainCard, HomeArea.SideTop => SideTopCard, _ => SideCard };
+            if (host.Content is not null) continue; // one card per place
+            try { host.Content = card.CreateCard(); }
             catch (Exception ex) { CrashLog.Write(ex); }
         }
-        EmptyHome.Visibility = Cards.Children.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // Nothing plays: the time and date take the big place.
+        EmptyMain.Visibility = MainCard.Content is null ? Visibility.Visible : Visibility.Collapsed;
+        bool top = SideTopCard.Content is not null, side = SideCard.Content is not null;
+        SideTopCard.Visibility = top ? Visibility.Visible : Visibility.Collapsed;
+        SideCard.Visibility = side ? Visibility.Visible : Visibility.Collapsed;
+        SideGap.Visibility = top && side ? Visibility.Visible : Visibility.Collapsed;
+        // A lone short card grows to fill the column.
+        SideTopCard.Height = side ? 104 : double.NaN;
+        if (!side) Grid.SetRowSpan(SideTopCard, 3); else Grid.SetRowSpan(SideTopCard, 1);
+        // No right column at all: the big card takes the whole width.
+        bool anySide = top || side;
+        SideColumn.Visibility = anySide ? Visibility.Visible : Visibility.Collapsed;
+        Grid.SetColumnSpan(MainHost, anySide ? 1 : 3);
+        MainColumn.Width = anySide ? new GridLength(336) : new GridLength(1, GridUnitType.Star);
+
+        // The figures are built once per opening: rebuilding them would restart their readings.
+        if (StatusHost.Content is not null) return;
+        foreach (var info in ModuleCatalog.All)
+            if (_modules.Get(info.Id) is IIslandStatus status)
+            {
+                try { StatusHost.Content = status.CreateStatus(); }
+                catch (Exception ex) { CrashLog.Write(ex); }
+                break;
+            }
+    }
+
+    /// <summary>Drops every card and the figures, so the closed island holds no card UI and nothing ticks.</summary>
+    private void ClearHome()
+    {
+        MainCard.Content = null;
+        SideTopCard.Content = null;
+        SideCard.Content = null;
+        StatusHost.Content = null;
     }
 
     private void UpdateClock()
@@ -649,7 +675,7 @@ public partial class IslandWindow : Window
         {
             drop.Stop();
             if (_expanded) return;
-            Cards.Children.Clear();
+            ClearHome();
             Height = ClosedWindowHeight;
             ExpandedContent.Visibility = Visibility.Collapsed; // not even walked while drawing the pill
             SetRenderMode(expanded: false);
@@ -670,7 +696,7 @@ public partial class IslandWindow : Window
         _collapseDelay.Stop();
         _expanded = false;
         _clock.Stop();
-        Cards.Children.Clear();
+        ClearHome();
         DropPeeks();
         Height = ClosedWindowHeight;
         SetRenderMode(expanded: false);

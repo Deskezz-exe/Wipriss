@@ -52,7 +52,7 @@ public sealed class BatteriesModule : IModule, IPillSource
             _devices = _fake;
             return;
         }
-        _bluetooth.Changed += () => _dispatcher.BeginInvoke(() => ReadSoon(Debounce));
+        _bluetooth.Changed += () => _dispatcher.BeginInvoke(() => { _retry = 0; ReadSoon(Debounce); });
         _bluetooth.Start();
         WatchHid();
         ReadSoon(Debounce);
@@ -146,8 +146,18 @@ public sealed class BatteriesModule : IModule, IPillSource
         }, TaskScheduler.Default);
     }
 
+    /// <summary>
+    /// Headphones tell Windows their charge some seconds after they connect (and some never do). While a Bluetooth
+    /// device is connected but has no figure yet, it is asked again a few times, then left until the next event.
+    /// </summary>
+    private static readonly TimeSpan[] Retries = [TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(45), TimeSpan.FromMinutes(2)];
+    private int _retry;
+
     private void Apply(List<BatteryDevice> found)
     {
+        int bluetooth = found.Count(d => d.Key.StartsWith("bt-", StringComparison.Ordinal));
+        if (_bluetooth.ConnectedCount > bluetooth && _retry < Retries.Length) ReadSoon(Retries[_retry++]);
+
         found = found.OrderBy(d => d.Kind).ThenBy(d => d.Name, StringComparer.CurrentCulture).ToList();
         bool sameSet = found.Select(d => d.Key).SequenceEqual(_devices.Select(d => d.Key));
         _devices = found;

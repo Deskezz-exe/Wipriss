@@ -7,8 +7,11 @@
         <Border Style="{StaticResource Card}" Padding="16,12,16,12">
             <StackPanel>
                 <DockPanel>
-                    <Button x:Name="ChangeKeyButton" DockPanel.Dock="Right" Style="{StaticResource PlainButton}" Content="Изменить"
-                            VerticalAlignment="Center" Click="ChangeKey_Click" />
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="ChangeKeyButton" Style="{StaticResource PlainButton}" Content="Изменить" Click="ChangeKey_Click" />
+                        <Button x:Name="CancelKeyButton" Style="{StaticResource PlainButton}" Content="Отмена" Margin="6,0,0,0"
+                                Focusable="False" Visibility="Collapsed" Click="CancelKey_Click" />
+                    </StackPanel>
                     <StackPanel Margin="0,0,16,0">
                         <TextBlock x:Name="KeyText" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                         <TextBlock x:Name="KeyHint" Style="{StaticResource Caption}" Margin="0,3,0,0"

@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Modules/">
+    <Project Path="src/Modules/Wipriss.Modules.Timer/Wipriss.Modules.Timer.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Wipriss.AgentHook/Wipriss.AgentHook.csproj" />
     <Project Path="src/Wipriss.App/Wipriss.App.csproj" />

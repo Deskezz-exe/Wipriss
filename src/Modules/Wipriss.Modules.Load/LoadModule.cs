@@ -11,7 +11,7 @@ namespace Wipriss.Modules.Load;
 /// on screen: it stops while the island is open or hidden, the screen is off or locked, or the blocks do not fit.
 /// Readings run on a worker thread; the UI only gets four short strings.
 /// </summary>
-public sealed class LoadModule : IModule, IPillSource
+public sealed class LoadModule : IModule, IPillSource, IIslandStatus
 {
     private static readonly TimeSpan Period = TimeSpan.FromSeconds(1);
 
@@ -69,6 +69,30 @@ public sealed class LoadModule : IModule, IPillSource
 
     public void SetPillShown(bool shown)
     {
+        _pillShown = shown;
+        SetActive(_pillShown || _statusShown);
+    }
+
+    // ---- The open island: the same figures in its top row, while it is open ----
+
+    private bool _pillShown, _statusShown;
+    private StatusRow? _status;
+
+    public FrameworkElement CreateStatus()
+    {
+        var row = new StatusRow(_sampler.HasGpu);
+        row.Loaded += (_, _) => { _status = row; _statusShown = true; SetActive(true); };
+        row.Unloaded += (_, _) =>
+        {
+            if (_status == row) _status = null;
+            _statusShown = false;
+            SetActive(_pillShown);
+        };
+        return row;
+    }
+
+    private void SetActive(bool shown)
+    {
         lock (_gate)
         {
             if (shown == _shown) return;
@@ -114,6 +138,7 @@ public sealed class LoadModule : IModule, IPillSource
             _gpu?.Show(r.Gpu, high: 90);
             _ram?.Show(r.Ram, high: 90);
             _net?.Show(r.Down, r.Up);
+            _status?.Show(r);
             if (gpuGone) { _gpu = null; PillChanged?.Invoke(); }
         });
     }
@@ -151,6 +176,76 @@ public sealed class LoadModule : IModule, IPillSource
         }
     }
 
+    /// <summary>
+    /// The open island's top row: CPU · GPU · RAM with a thin bar under each, then the network speed.
+    /// Fixed widths, so the row never shifts as the figures change.
+    /// </summary>
+    private sealed class StatusRow : StackPanel
+    {
+        private readonly List<(TextBlock Value, System.Windows.Media.ScaleTransform Bar, Func<LoadReading, double> Pick)> _metrics = [];
+        private readonly TextBlock _down, _up;
+
+        public StatusRow(bool gpu)
+        {
+            Orientation = Orientation.Horizontal;
+            VerticalAlignment = VerticalAlignment.Center;
+            Add("CPU", r => r.Cpu);
+            if (gpu) Add("GPU", r => r.Gpu);
+            Add("RAM", r => r.Ram);
+
+            var net = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            net.Children.Add(PillLook.IconView(PillLook.ArrowDown, PillLook.Subtle, 11));
+            _down = Value(Math.Max(PillLook.TextWidth("888K"), PillLook.TextWidth("888M")));
+            _down.Margin = new Thickness(2, 0, 6, 0);
+            net.Children.Add(_down);
+            net.Children.Add(PillLook.IconView(PillLook.ArrowUp, PillLook.Subtle, 11));
+            _up = Value(_down.Width);
+            _up.Margin = new Thickness(2, 0, 0, 0);
+            net.Children.Add(_up);
+            Children.Add(net);
+        }
+
+        private static TextBlock Value(double width)
+        {
+            var t = PillLook.Label("–");
+            t.Width = width;
+            t.FontWeight = FontWeights.SemiBold;
+            return t;
+        }
+
+        private void Add(string label, Func<LoadReading, double> pick)
+        {
+            var box = new StackPanel { Margin = new Thickness(0, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
+            var line = new StackPanel { Orientation = Orientation.Horizontal };
+            var name = PillLook.Label(label, PillLook.Subtle, 10.5);
+            name.FontFamily = PillLook.SmallFont;
+            name.Margin = new Thickness(0, 1, 5, 0);
+            line.Children.Add(name);
+            var value = Value(PillLook.TextWidth("100%"));
+            line.Children.Add(value);
+            box.Children.Add(line);
+            var bar = HomeLook.Bar(3, PillLook.Text, out var scale);
+            bar.Margin = new Thickness(0, 3, 0, 0);
+            box.Children.Add(bar);
+            Children.Add(box);
+            _metrics.Add((value, scale, pick));
+        }
+
+        public void Show(LoadReading r)
+        {
+            foreach (var (value, bar, pick) in _metrics)
+            {
+                double v = pick(r);
+                if (double.IsNaN(v)) continue;
+                value.Text = LoadMath.Percent(v);
+                value.Foreground = v >= 90 ? PillLook.Red : PillLook.Text;
+                bar.ScaleX = Math.Clamp(v / 100, 0, 1);
+            }
+            if (!double.IsNaN(r.Down)) _down.Text = LoadMath.Speed(r.Down);
+            if (!double.IsNaN(r.Up)) _up.Text = LoadMath.Speed(r.Up);
+        }
+    }
+
     /// <summary>"↓ 1.2M ↑ 85K": download and upload per second.</summary>
     private sealed class NetMetric : StackPanel
     {
@@ -162,6 +257,10 @@ public sealed class LoadModule : IModule, IPillSource
         {
             Orientation = Orientation.Horizontal;
             VerticalAlignment = VerticalAlignment.Center;
+            var name = PillLook.Label("Сеть", PillLook.Subtle, 10.5);
+            name.FontFamily = PillLook.SmallFont;
+            name.Margin = new Thickness(0, 1, 5, 0);
+            Children.Add(name);
             Children.Add(PillLook.IconView(PillLook.ArrowDown, PillLook.Subtle, 11));
             _down = Value(new Thickness(2, 0, 6, 0));
             Children.Add(_down);

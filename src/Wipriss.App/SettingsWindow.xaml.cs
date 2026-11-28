@@ -43,7 +43,7 @@ public partial class SettingsWindow : Window
             ("pill", "Пилюля", "", BuildPill),
             ("agents", "Агенты", "", () => BuildModulePage("agents", "Claude Code и Codex: что делают и когда ждут вас.")),
             ("notes", "Заметки", "", BuildNotes),
-            ("capture", "Скриншоты", "", () => BuildModulePage("capture", "Снимок экрана по клавише PrtSc.")),
+            ("capture", "Скриншоты", "", () => BuildModulePage("capture", "Снимок экрана по горячей клавише (по умолчанию PrtSc).")),
             ("dictation", "Голос", "", () => BuildModulePage("dictation", "Говорите, и текст печатается там, где курсор.")),
             ("about", "О программе", "", BuildAbout),
         ];
@@ -144,7 +144,7 @@ public partial class SettingsWindow : Window
             first = false;
             dock.Children.Add(ModuleToggle(info));
         }
-        Section("Кнопки внизу", dock, "Выключенный модуль не загружается и не тратит память.");
+        Section("Кнопки сверху", dock, "Выключенный модуль не загружается и не тратит память.");
     }
 
     /// <summary>What the closed pill shows. Each kind of block can be switched off on its own.</summary>
@@ -165,7 +165,8 @@ public partial class SettingsWindow : Window
         var kinds = Card();
         (string Kind, string Title, string? Note)[] all =
         [
-            ("media", "Музыка", "Обложка, название и полоски звука"),
+            ("media", "Музыка", "Значок, название и полоски звука"),
+            ("timer", "Таймер", "Сколько минут осталось, пока таймер идёт"),
             ("agents", "Агенты", "Claude Code и Codex: работают, ждут вас, готово"),
             ("load.cpu", "Процессор", null),
             ("load.gpu", "Видеокарта", null),
@@ -239,90 +240,27 @@ public partial class SettingsWindow : Window
 
     private FrameworkElement HotkeyRow(string moduleId, string title)
     {
-        string current = HotkeyService.Current(_store.Current, moduleId);
-        var hint = Caption(_hotkeys.IsTaken(moduleId) ? "Это сочетание занято другой программой. Выберите другое." : "Нажмите кнопку, затем нужные клавиши. Esc — отмена.",
-            _hotkeys.IsTaken(moduleId) ? "WarnBrush" : "SubtleTextBrush");
-
-        var key = new Button { Style = St("PlainButton"), MinWidth = 130, Content = current.Length > 0 ? Pretty(current) : "Нет", Focusable = true };
-        var reset = Button("По умолчанию", "PlainButton", () =>
+        var current = Hotkey.Parse(HotkeyService.Current(_store.Current, moduleId));
+        var defaultKey = Hotkey.Parse(HotkeyService.Default(moduleId));
+        var row = new Wipriss.Core.Ui.HotkeyRow(title, current, defaultKey, k => k.IsUsable,
+            "Добавьте Ctrl, Alt или Win, чтобы клавиша не мешала печатать.",
+            _hotkeys.IsTaken(moduleId) ? "Это сочетание занято другой программой. Выберите другое." : null);
+        row.Recording += on =>
         {
-            _store.Update(s => s.Hotkeys.Remove(moduleId));
-            Show(_current);
-        });
-        reset.Margin = new Thickness(6, 0, 0, 0);
-        reset.Visibility = _store.Current.Hotkeys.ContainsKey(moduleId) ? Visibility.Visible : Visibility.Collapsed;
-
-        key.Click += (_, _) =>
-        {
-            if (_cancelRecording is not null) return;
-            key.Content = "Нажмите клавиши…";
-            hint.Text = "Например Win + Alt + N. Нужна Ctrl, Alt или Win. Backspace — без клавиши.";
-            hint.Foreground = Brush("SubtleTextBrush");
-            _hotkeys.Suspend(true);
-
-            void OnKey(object s, KeyEventArgs e)
-            {
-                e.Handled = true;
-                var k = e.Key == Key.System ? e.SystemKey : e.Key;
-                if (k is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin)
-                    return;
-                if (k == Key.Escape) { Stop(); Show(_current); return; }
-                if (k is Key.Back or Key.Delete)
-                {
-                    Stop();
-                    _store.Update(st => st.Hotkeys[moduleId] = "");
-                    Show(_current);
-                    return;
-                }
-
-                var mods = Keyboard.Modifiers;
-                bool win = Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin);
-                int flags = (mods.HasFlag(ModifierKeys.Control) ? Hotkey.Ctrl : 0) | (mods.HasFlag(ModifierKeys.Alt) ? Hotkey.Alt : 0)
-                            | (mods.HasFlag(ModifierKeys.Shift) ? Hotkey.Shift : 0) | (win ? Hotkey.Win : 0);
-                var hk = new Hotkey(flags, KeyInterop.VirtualKeyFromKey(k));
-                if (!hk.IsUsable)
-                {
-                    hint.Text = "Добавьте Ctrl, Alt или Win, чтобы клавиша не мешала печатать.";
-                    hint.Foreground = Brush("WarnBrush");
-                    return;
-                }
-                Stop();
-                _store.Update(st => st.Hotkeys[moduleId] = hk.ToString());
-                Show(_current);
-            }
-
-            void OnLost(object s, RoutedEventArgs e) { Stop(); Show(_current); }
-
-            void Stop()
-            {
-                key.PreviewKeyDown -= OnKey;
-                key.LostKeyboardFocus -= OnLost;
-                _cancelRecording = null;
-                _hotkeys.Suspend(false);
-            }
-
-            key.PreviewKeyDown += OnKey;
-            key.Focus();
-            key.LostKeyboardFocus += OnLost;
-            _cancelRecording = Stop;
+            _hotkeys.Suspend(on);
+            _cancelRecording = on ? row.Cancel : null;
         };
-
-        var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        right.Children.Add(key);
-        right.Children.Add(reset);
-
-        var row = new DockPanel();
-        DockPanel.SetDock(right, Dock.Right);
-        row.Children.Add(right);
-        var left = new StackPanel { Margin = new Thickness(0, 0, 16, 0), VerticalAlignment = VerticalAlignment.Center };
-        left.Children.Add(new TextBlock { Text = title, Style = St("RowTitle") });
-        hint.Margin = new Thickness(0, 3, 0, 0);
-        left.Children.Add(hint);
-        row.Children.Add(left);
-        return Padded(row);
+        row.Chosen += hk =>
+        {
+            _store.Update(st =>
+            {
+                if (hk == defaultKey) st.Hotkeys.Remove(moduleId);
+                else st.Hotkeys[moduleId] = hk.ToString();
+            });
+            Dispatcher.BeginInvoke(() => Show(_current));
+        };
+        return row;
     }
-
-    private static string Pretty(string hotkey) => hotkey.Replace("+", " + ");
 
     // ---- Folder ----
 
