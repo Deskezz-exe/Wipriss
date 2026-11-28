@@ -9,6 +9,9 @@ public enum ModulePlace
     /// <summary>A live card on the home screen (and a status in the closed pill).</summary>
     Card,
 
+    /// <summary>Only blocks in the closed pill (figures, batteries).</summary>
+    Pill,
+
     /// <summary>No button: works by a key (PrtSc, a hotkey) and is set up in Settings.</summary>
     Background,
 }

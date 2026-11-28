@@ -25,6 +25,8 @@
     <ProjectReference Include="..\Wipriss.Core\Wipriss.Core.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Agents\Wipriss.Modules.Agents.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Media\Wipriss.Modules.Media.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Load\Wipriss.Modules.Load.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Batteries\Wipriss.Modules.Batteries.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Notes\Wipriss.Modules.Notes.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.ClipboardHistory\Wipriss.Modules.ClipboardHistory.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Reminders\Wipriss.Modules.Reminders.csproj" />
@@ -43,6 +45,8 @@
     <ProjectReference Include="..\Modules\Wipriss.Modules.Cleaner\Wipriss.Modules.Cleaner.csproj" />
     <!-- The cleaner's scanner ships next to Wipriss.exe (one search per process, then it exits) -->
     <ProjectReference Include="..\Wipriss.Cleaner\Wipriss.Cleaner.csproj" />
+    <!-- The agents' hook ships next to Wipriss.exe (Claude Code and Codex run it, it exits at once) -->
+    <ProjectReference Include="..\Wipriss.AgentHook\Wipriss.AgentHook.csproj" />
     <!-- The one-shot admin helper ships next to Wipriss.exe -->
     <ProjectReference Include="..\Wipriss.Helper\Wipriss.Helper.csproj" />
   </ItemGroup>

@@ -12,7 +12,7 @@ namespace Wipriss.Modules.Media;
 /// What plays right now in any program that reports to Windows (browsers with YouTube, Spotify, players):
 /// the same source as the volume flyout of Windows. Windows tells us about every change by events.
 /// </summary>
-public sealed class MediaModule : IModule, IIslandCard
+public sealed class MediaModule : IModule, IIslandCard, IPillSource
 {
     private Dispatcher? _dispatcher;
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
@@ -35,6 +35,13 @@ public sealed class MediaModule : IModule, IIslandCard
     public void Start(IModuleHost host)
     {
         _dispatcher = host.Dispatcher;
+        // For checks of the layout without playing anything: WIPRISS_FAKE_MEDIA="Song title".
+        if (Environment.GetEnvironmentVariable("WIPRISS_FAKE_MEDIA") is { Length: > 0 } fake)
+        {
+            Current = new NowPlaying(fake, "Test", "Test", true, null, false, false);
+            UpdatePill();
+            return;
+        }
         _ = ConnectAsync();
     }
 
@@ -48,12 +55,76 @@ public sealed class MediaModule : IModule, IIslandCard
         }
         Follow(null);
         Current = null;
+        _pausedTimer?.Stop();
+        _pill?.Animate(false);
+        _pill = null;
+        _inPill = false;
     }
 
     public FrameworkElement CreatePanel(IPanelContext panel) => new MediaCard(this);
 
-    public IslandActivity? Activity =>
-        Current is { Playing: true } now ? new IslandActivity(now.Title, ActivityState.Info, Note, null) : null;
+    // ---- The pill: what plays, and a paused song for a few minutes more ----
+
+    private static readonly TimeSpan KeepPaused = TimeSpan.FromMinutes(3);
+    private MediaPill? _pill;
+    private DispatcherTimer? _pausedTimer;
+    private bool _pillShown, _inPill;
+
+    public event Action? PillChanged;
+
+    public event Action<PillPeek>? PillPeek { add { } remove { } }
+
+    public IReadOnlyList<PillSlot> PillSlots => _inPill && Current is not null
+        ? [new PillSlot("media", "media", PillGroup.Media, 60, () => PillView())]
+        : [];
+
+    public void SetPillShown(bool shown)
+    {
+        _pillShown = shown;
+        _pill?.Animate(shown && Current is { Playing: true });
+    }
+
+    private MediaPill PillView()
+    {
+        _pill ??= new MediaPill();
+        if (Current is { } now) _pill.Show(now);
+        _pill.Animate(_pillShown && Current is { Playing: true });
+        return _pill;
+    }
+
+    /// <summary>After a change: in the pill while it plays, and a little while after a pause.</summary>
+    private void UpdatePill()
+    {
+        bool was = _inPill;
+        _pausedTimer?.Stop();
+        if (Current is { Playing: true }) _inPill = true;
+        else if (Current is null) _inPill = false;
+        else if (_inPill && _dispatcher is not null)
+        {
+            _pausedTimer ??= new DispatcherTimer(DispatcherPriority.Background, _dispatcher) { Interval = KeepPaused };
+            _pausedTimer.Tick -= OnPausedLong;
+            _pausedTimer.Tick += OnPausedLong;
+            _pausedTimer.Start();
+        }
+
+        bool widthChanged = false;
+        if (_inPill && _pill is not null && Current is { } now)
+        {
+            widthChanged = _pill.Show(now);
+            _pill.Animate(_pillShown && now.Playing);
+        }
+        if (!_inPill) _pill = null;
+        if (was != _inPill || widthChanged) PillChanged?.Invoke();
+    }
+
+    private void OnPausedLong(object? sender, EventArgs e)
+    {
+        _pausedTimer?.Stop();
+        if (Current is { Playing: true }) return;
+        _inPill = false;
+        _pill = null;
+        PillChanged?.Invoke();
+    }
 
     public bool HasContent => Current is not null;
 
@@ -150,6 +221,7 @@ public sealed class MediaModule : IModule, IIslandCard
             if (generation != _generation || _stopped) return;
             if (next == Current) return;
             Current = next;
+            UpdatePill();
             Changed?.Invoke();
         });
     }

@@ -61,12 +61,20 @@ The microphone is recorded with Windows' own waveIn API, without a library.
 `src/Wipriss.Converter/BackgroundRemover.cs` ("Убрать однотонный фон") is Filee's `BackgroundRemover.cs`, only the namespace changed. Its header names the source and the commit.
 The Windows 11 Explorer menu is based on Filee's Explorer-menu extension (commit a89b139): `src/Wipriss.ExplorerMenu/WiprissExplorerMenu.c`, `.def` and `.rc` (from `FileeExplorerMenu.*`: own CLSID, title, app names and title-file folder), `AppxManifest.xml` (from `ExplorerMenuPackage.CreateManifest`: a static file, picture types only), `MenuPackage.cs` and the package lookup in `src/Modules/Wipriss.Modules.Converter/ExplorerMenu.cs` (from `ExplorerMenuRegistration.cs`), `tools/make-explorer-package.cs` and `tools/build-explorer-menu.ps1` (from `build/`). Each file's header lists the changes.
 
+**Fluent UI System Icons** by Microsoft Corporation, MIT — https://github.com/microsoft/fluentui-system-icons
+The line icons of the closed pill (music note, headphones, headset, keyboard, arrows down and up; 16 px regular) are that set's SVG path data, unchanged, in `src/Wipriss.Core/Ui/PillLook.cs`. The mouse and the battery there are Wipriss's own drawings in the same style.
+
+**HaloBattery** by its authors, MIT — https://github.com/HeyOkay/HaloBattery
+The battery reading in `src/Modules/Wipriss.Modules.Batteries` follows HaloBattery's notes and code (Python), rewritten in C#: the Bluetooth battery property of Windows read with cfgmgr32, the device kind from the Bluetooth class and appearance, and the request bytes and reply offsets of the Logitech HID++ 2.0, Razer, HyperX, SteelSeries and Corsair battery queries (`HidProtocols.cs`, whose header says so). No code of GPL projects was looked at or used.
+
 **Zig** 0.16.0 (build tool only, not shipped), MIT — https://ziglang.org. `tools/build-explorer-menu.ps1` downloads it (SHA-256 checked) to compile the Explorer-menu DLL; the DLL links no Zig or C runtime code.
 
 ```
 MIT License
 
 Copyright (c) 2026 Myeonggu Kim (KnifeLemon) and Filee contributors
+Copyright (c) 2020 Microsoft Corporation (Fluent UI System Icons)
+Copyright (c) 2026 Halo Battery contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

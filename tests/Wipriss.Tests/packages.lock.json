@@ -198,6 +198,12 @@
           "Wipriss.Core": "[0.1.0, )"
         }
       },
+      "wipriss.modules.load": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )"
+        }
+      },
       "wipriss.modules.reminders": {
         "type": "Project",
         "dependencies": {

@@ -34,6 +34,7 @@
     <SolidColorBrush x:Key="AccentHoverBrush" Color="#2F2F35" />
     <SolidColorBrush x:Key="AccentLineBrush" Color="#4A4A52" />
 
+    <SolidColorBrush x:Key="InfoBrush" Color="#6EA8F5" />
     <SolidColorBrush x:Key="OkBrush" Color="#7BC79A" />
     <SolidColorBrush x:Key="WarnBrush" Color="#E2B05E" />
     <SolidColorBrush x:Key="DangerBrush" Color="#E5806E" />

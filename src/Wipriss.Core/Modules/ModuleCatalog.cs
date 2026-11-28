@@ -15,8 +15,10 @@ public static class ModuleCatalog
         new("reader",     "Таблицы",   "", "XLSX, CSV и другие таблицы", 5),
         new("dictation",  "Голос",       "", "Говорите, и текст печатается сам", 6, ModulePlace.Background),
         new("cleaner",    "Очистка",     "", "Мусор и остатки программ", 7),
-        new("agents",     "Claude",        "", "Чем сейчас занят Claude Code", 8, ModulePlace.Card),
+        new("agents",     "Агенты",        "", "Чем заняты Claude Code и Codex", 8, ModulePlace.Card),
         new("media",      "Сейчас играет", "", "Музыка и видео из любых программ", 8, ModulePlace.Card),
+        new("load",       "Нагрузка",      "", "Процессор, видеокарта, память и сеть", 9, ModulePlace.Pill),
+        new("batteries",  "Батареи",       "", "Заряд мыши, клавиатуры и наушников", 9, ModulePlace.Pill),
     ];
 
     public static ModuleInfo Get(string id) =>

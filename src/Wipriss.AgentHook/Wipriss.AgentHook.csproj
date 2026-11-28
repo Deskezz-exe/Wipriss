@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The hook Claude Code and Codex run when they wait for you or finish: it passes one short line to the island
+    through a named pipe and exits at once. No window, no WPF, never prints anything (Claude Code reads a hook's
+    output), always exits with 0 so an agent never stops because of it.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Wipriss.AgentHook</AssemblyName>
+    <RootNamespace>Wipriss.AgentHook</RootNamespace>
+    <ApplicationIcon>..\Wipriss.App\Assets\wipriss.ico</ApplicationIcon>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>false</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Modules\Wipriss.Modules.Agents\HookProtocol.cs" Link="HookProtocol.cs" />
+  </ItemGroup>
+
+</Project>

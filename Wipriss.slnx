@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Wipriss.AgentHook/Wipriss.AgentHook.csproj" />
     <Project Path="src/Wipriss.App/Wipriss.App.csproj" />
     <Project Path="src/Wipriss.Capture/Wipriss.Capture.csproj" />
     <Project Path="src/Wipriss.Cleaner/Wipriss.Cleaner.csproj" />
@@ -13,6 +14,8 @@
   <Folder Name="/src/Modules/">
     <Project Path="src/Modules/Wipriss.Modules.Agents/Wipriss.Modules.Agents.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Media/Wipriss.Modules.Media.csproj" />
+    <Project Path="src/Modules/Wipriss.Modules.Load/Wipriss.Modules.Load.csproj" />
+    <Project Path="src/Modules/Wipriss.Modules.Batteries/Wipriss.Modules.Batteries.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Capture/Wipriss.Modules.Capture.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.Cleaner/Wipriss.Modules.Cleaner.csproj" />
     <Project Path="src/Modules/Wipriss.Modules.ClipboardHistory/Wipriss.Modules.ClipboardHistory.csproj" />

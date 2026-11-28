@@ -12,7 +12,7 @@ namespace Wipriss.Modules.Agents;
 /// transcripts under %USERPROFILE%\.claude\projects). A file watcher tells us when a transcript grows;
 /// only the new bytes are read, on a worker thread. Nothing runs while no session is active.
 /// </summary>
-public sealed class AgentsModule : IModule, IIslandCard
+public sealed class AgentsModule : IModule, IIslandCard, IPillSource, ISettingsPage
 {
     /// <summary>A session silent for this long has stopped (closed window, crash) even if its last line said "working".</summary>
     private static readonly TimeSpan Stale = TimeSpan.FromMinutes(10);
@@ -66,7 +66,11 @@ public sealed class AgentsModule : IModule, IIslandCard
         _expire = new DispatcherTimer(DispatcherPriority.Background, _dispatcher);
         _expire.Tick += (_, _) => { _expire.Stop(); Raise(); };
 
-        if (!Directory.Exists(_root)) return; // Claude Code is not installed: the module stays silent
+        _listen = new CancellationTokenSource();
+        _ = ListenAsync(_listen.Token);
+        WatchCodex();
+
+        if (!Directory.Exists(_root)) return; // Claude Code is not installed: its transcripts stay silent
 
         _watcher = new FileSystemWatcher(_root, "*.jsonl")
         {
@@ -103,32 +107,222 @@ public sealed class AgentsModule : IModule, IIslandCard
         }
         _debounce?.Stop();
         _expire?.Stop();
+        _listen?.Cancel();
+        _listen = null;
+        if (_codexWatcher is not null)
+        {
+            _codexWatcher.EnableRaisingEvents = false;
+            _codexWatcher.Dispose();
+            _codexWatcher = null;
+        }
         lock (_gate)
         {
             _sessions.Clear();
             _pending.Clear();
+            _hookWaits.Clear();
         }
+        _pills.Clear();
+        _states.Clear();
     }
 
     public FrameworkElement CreatePanel(IPanelContext panel) => new AgentCard(this);
 
-    // ---- IIslandCard ----
+    public FrameworkElement CreateSettings() => new AgentsSettings();
 
-    public IslandActivity? Activity
+    // ---- The pill: one block per agent that is doing something ----
+
+    public event Action? PillChanged;
+
+    public event Action<PillPeek>? PillPeek;
+
+    private readonly Dictionary<string, AgentPill> _pills = [];
+    private readonly Dictionary<string, AgentState> _states = [];
+    private bool _pillShown;
+
+    public IReadOnlyList<PillSlot> PillSlots =>
+        _states.Where(s => s.Value != AgentState.None)
+            .OrderBy(s => s.Key)
+            .Select(s => new PillSlot("agent." + s.Key, "agents", PillGroup.Agents, 100, () => PillView(s.Key)))
+            .ToList();
+
+    public void SetPillShown(bool shown)
     {
-        get
+        _pillShown = shown;
+        foreach (var pill in _pills.Values) pill.Animate(shown);
+    }
+
+    private AgentPill PillView(string agent)
+    {
+        if (!_pills.TryGetValue(agent, out var pill)) _pills[agent] = pill = new AgentPill(agent);
+        pill.Show(_states.GetValueOrDefault(agent));
+        pill.Animate(_pillShown);
+        return pill;
+    }
+
+    /// <summary>What each agent does now, the most urgent of its sessions.</summary>
+    private Dictionary<string, (AgentState State, string Project)> CurrentStates(DateTime now)
+    {
+        var result = new Dictionary<string, (AgentState, string)>();
+
+        // Claude Code: its transcripts, plus the hook for "waits for your approval".
+        var claude = (State: AgentState.None, Project: "");
+        foreach (var v in Visible(now))
         {
-            var now = DateTime.Now;
-            var s = Visible(now).FirstOrDefault();
-            if (s is null) return null;
-            return s.Phase switch
+            var s = v.Phase switch
             {
-                Phase.Working => new IslandActivity(s.Headline, ActivityState.Busy, Mark, AgentCard.AgentBrush),
-                Phase.Waiting => new IslandActivity("Ждёт вас", ActivityState.Waiting, Mark, AgentCard.AgentBrush),
-                Phase.Done when now - s.LastEvent < DoneInPill => new IslandActivity("Готово", ActivityState.Done, Mark, AgentCard.AgentBrush),
-                _ => null,
+                Phase.Waiting => AgentState.Waiting,
+                Phase.Working => AgentState.Working,
+                Phase.Done when now - v.LastEvent < DoneInPill => AgentState.Done,
+                _ => AgentState.None,
             };
+            if (Rank(s) > Rank(claude.State)) claude = (s, v.Project);
         }
+        lock (_gate)
+        {
+            foreach (var w in _hookWaits.Values)
+                if (w.Agent == "claude" && now - w.At < Stale && Rank(AgentState.Waiting) > Rank(claude.State))
+                    claude = (AgentState.Waiting, w.Project);
+        }
+        result["claude"] = claude;
+
+        // Codex: its session files say it works; its notify says it waits or is done.
+        var codex = (State: AgentState.None, Project: "");
+        lock (_gate)
+        {
+            foreach (var w in _hookWaits.Values)
+                if (w.Agent == "codex" && now - w.At < Stale) codex = (AgentState.Waiting, w.Project);
+            if (codex.State == AgentState.None)
+            {
+                if (_codexWorking is { } work && now - work < CodexQuiet && (_codexDone is not { } d || d < work)) codex = (AgentState.Working, "");
+                else if (_codexDone is { } done && now - done < DoneInPill) codex = (AgentState.Done, _codexProject);
+            }
+        }
+        result["codex"] = codex;
+        return result;
+    }
+
+    private static int Rank(AgentState s) => s switch
+    {
+        AgentState.Waiting => 3,
+        AgentState.Working => 2,
+        AgentState.Done => 1,
+        _ => 0,
+    };
+
+    /// <summary>Brings the pill up to date; a newly waiting agent gets a moment of attention.</summary>
+    private void UpdatePill(DateTime now)
+    {
+        bool slotsChanged = false;
+        foreach (var (agent, (state, project)) in CurrentStates(now))
+        {
+            var was = _states.GetValueOrDefault(agent);
+            if (was == state) continue;
+            _states[agent] = state;
+            if ((was == AgentState.None) != (state == AgentState.None)) slotsChanged = true;
+            if (state == AgentState.None) _pills.Remove(agent);
+            else if (_pills.TryGetValue(agent, out var pill)) pill.Show(state);
+
+            if (state == AgentState.Waiting)
+            {
+                string a = agent, p = project;
+                PillPeek?.Invoke(new PillPeek("agent." + a, () => AgentPill.Peek(a, "ждёт подтверждения", p), TimeSpan.FromSeconds(3)));
+            }
+        }
+        if (slotsChanged) PillChanged?.Invoke();
+    }
+
+    // ---- Hooks: Claude Code and Codex tell us when they wait (see Wipriss.AgentHook) ----
+
+    private static readonly TimeSpan CodexQuiet = TimeSpan.FromMinutes(2);
+    private readonly Dictionary<string, HookWait> _hookWaits = [];
+    private DateTime? _codexWorking, _codexDone;
+    private string _codexProject = "";
+    private CancellationTokenSource? _listen;
+    private FileSystemWatcher? _codexWatcher;
+
+    private sealed record HookWait(string Agent, string Transcript, string Project, DateTime At);
+
+    /// <summary>Waits for hook messages. Awaiting a connection holds no thread.</summary>
+    private async Task ListenAsync(CancellationToken cancel)
+    {
+        while (!cancel.IsCancellationRequested)
+        {
+            try
+            {
+                await using var server = new System.IO.Pipes.NamedPipeServerStream(HookProtocol.PipeName, System.IO.Pipes.PipeDirection.In, 4,
+                    System.IO.Pipes.PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.Asynchronous | System.IO.Pipes.PipeOptions.CurrentUserOnly);
+                await server.WaitForConnectionAsync(cancel).ConfigureAwait(false);
+                var buffer = new byte[HookProtocol.MaxMessageBytes];
+                int total = 0, read;
+                using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancel))
+                {
+                    timeout.CancelAfter(2000);
+                    while (total < buffer.Length && (read = await server.ReadAsync(buffer.AsMemory(total), timeout.Token).ConfigureAwait(false)) > 0)
+                        total += read;
+                }
+                if (HookProtocol.Read(Encoding.UTF8.GetString(buffer, 0, total)) is { } message)
+                    _dispatcher?.BeginInvoke(() => OnHook(message));
+            }
+            catch (OperationCanceledException) when (cancel.IsCancellationRequested) { return; }
+            catch (OperationCanceledException) { }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { return; } // another copy holds the pipe
+        }
+    }
+
+    private void OnHook(HookMessage m)
+    {
+        if (_dispatcher is null) return;
+        var now = DateTime.Now;
+        string key = m.Agent + ":" + (m.Session.Length > 0 ? m.Session : m.Transcript);
+        lock (_gate)
+        {
+            if (m.Kind == HookKind.Waiting) _hookWaits[key] = new HookWait(m.Agent, m.Transcript, m.Project, now);
+            else _hookWaits.Remove(key);
+            if (m.Agent == "codex" && m.Kind == HookKind.Done)
+            {
+                _codexDone = now;
+                _codexProject = m.Project;
+                foreach (var k in _hookWaits.Where(w => w.Value.Agent == "codex").Select(w => w.Key).ToList()) _hookWaits.Remove(k);
+            }
+        }
+        Raise();
+    }
+
+    /// <summary>Codex writes its sessions under ~/.codex/sessions: a write means it works.</summary>
+    private void WatchCodex()
+    {
+        string dir = Path.Combine(Path.GetDirectoryName(HookSetup.CodexConfigFile)!, "sessions");
+        if (!Directory.Exists(dir)) return;
+        try
+        {
+            _codexWatcher = new FileSystemWatcher(dir, "*.jsonl")
+            {
+                IncludeSubdirectories = true,
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
+                InternalBufferSize = 8 * 1024,
+            };
+            _codexWatcher.Changed += OnCodexFile;
+            _codexWatcher.Created += OnCodexFile;
+            _codexWatcher.EnableRaisingEvents = true;
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException) { _codexWatcher = null; }
+    }
+
+    private void OnCodexFile(object sender, FileSystemEventArgs e)
+    {
+        var now = DateTime.Now;
+        bool fresh;
+        lock (_gate)
+        {
+            // Many writes a second while it works: wake the UI only when the state may change.
+            fresh = _codexWorking is not { } w || now - w > TimeSpan.FromSeconds(20) || (_codexDone is { } d && d > w);
+            _codexWorking = now;
+            if (_hookWaits.Count > 0)
+                foreach (var k in _hookWaits.Where(x => x.Value.Agent == "codex" && now - x.Value.At > TimeSpan.FromSeconds(2)).Select(x => x.Key).ToList())
+                    _hookWaits.Remove(k);
+        }
+        if (fresh) _dispatcher?.BeginInvoke(Raise);
     }
 
     public bool HasContent => Visible(DateTime.Now).Count > 0;
@@ -223,6 +417,20 @@ public sealed class AgentsModule : IModule, IIslandCard
                 session.Transcript.Feed(line.TrimEnd('\r'));
             }
             session.FileTime = File.GetLastWriteTime(path);
+
+            // The transcript moved on after "waits for approval": the user answered.
+            if (_hookWaits.Count > 0)
+            {
+                var now = DateTime.Now;
+                string id = Path.GetFileNameWithoutExtension(path);
+                var answered = _hookWaits
+                    .Where(w => w.Value.Agent == "claude" && now - w.Value.At > TimeSpan.FromSeconds(1.5)
+                                && (string.Equals(w.Value.Transcript, path, StringComparison.OrdinalIgnoreCase)
+                                    || w.Key.EndsWith(":" + id, StringComparison.OrdinalIgnoreCase)))
+                    .Select(w => w.Key)
+                    .ToList();
+                foreach (var key in answered) _hookWaits.Remove(key);
+            }
         }
     }
 
@@ -243,6 +451,20 @@ public sealed class AgentsModule : IModule, IIslandCard
             };
             if (left > TimeSpan.Zero && (next is null || left < next)) next = left;
         }
+        // The hook's "waits" and Codex's states end by themselves too.
+        lock (_gate)
+        {
+            var ends = _hookWaits.Values.Select(w => w.At + Stale).ToList();
+            if (_codexWorking is { } work) ends.Add(work + CodexQuiet);
+            if (_codexDone is { } done) ends.Add(done + DoneInPill);
+            foreach (var end in ends)
+            {
+                var left = end - now;
+                if (left > TimeSpan.Zero && (next is null || left < next)) next = left;
+            }
+            foreach (var key in _hookWaits.Where(w => now - w.Value.At >= Stale).Select(w => w.Key).ToList()) _hookWaits.Remove(key);
+        }
+        UpdatePill(now);
         // The first look reads old transcripts: give that memory back once it is parsed.
         if (_firstRead) { _firstRead = false; _host?.TrimMemory(); }
         _expire!.Stop();

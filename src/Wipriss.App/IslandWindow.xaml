@@ -20,35 +20,15 @@
 
         <Grid x:Name="Surface" Background="{StaticResource IslandBrush}">
 
-            <!-- Closed: the logo, or what is going on right now -->
+            <!-- Closed: the modules' blocks in a row (set up in code), or for a moment one wider message -->
             <Grid x:Name="CollapsedContent" Height="34" HorizontalAlignment="Center" VerticalAlignment="Top"
                   IsHitTestVisible="False">
-                <Viewbox x:Name="Logo" Width="14" Height="14">
-                    <Path Data="{StaticResource LogoGeometry}" Fill="{StaticResource TextBrush}" />
-                </Viewbox>
-                <StackPanel x:Name="ActivityRow" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
-                    <Viewbox Width="14" Height="14" VerticalAlignment="Center">
-                        <Path x:Name="ActivityIcon" Width="24" Height="24" Fill="{StaticResource TextBrush}" />
-                    </Viewbox>
-                    <TextBlock x:Name="ActivityText" Margin="9,0,10,1" FontSize="12.5" VerticalAlignment="Center"
-                               MaxWidth="300" TextTrimming="CharacterEllipsis" />
-                    <Grid Width="14" Height="14" VerticalAlignment="Center">
-                        <!-- Busy: a quarter arc turning; Done: a tick; Waiting: a dot -->
-                        <Path x:Name="Spinner" Stroke="{StaticResource BusyBrush}" StrokeThickness="1.8" StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round" Data="M7,1.5 A5.5,5.5 0 1 1 1.5,7" RenderTransformOrigin="0.5,0.5" Visibility="Collapsed">
-                            <Path.RenderTransform>
-                                <RotateTransform x:Name="SpinnerTurn" />
-                            </Path.RenderTransform>
-                        </Path>
-                        <Path x:Name="DoneMark" Stroke="{StaticResource OkBrush}" StrokeThickness="1.8" StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round" StrokeLineJoin="Round" Data="M2.5,7.5 L5.8,10.5 L11.5,3.8" Visibility="Collapsed" />
-                        <Ellipse x:Name="WaitDot" Width="7" Height="7" Fill="{StaticResource BusyBrush}" Visibility="Collapsed" />
-                    </Grid>
-                </StackPanel>
+                <StackPanel x:Name="PillRow" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                <ContentControl x:Name="PeekHost" VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0" Focusable="False" />
             </Grid>
 
             <Grid x:Name="ExpandedContent" Width="568" Height="262" Margin="0,12,0,0"
-                  HorizontalAlignment="Center" VerticalAlignment="Top" Opacity="0" IsHitTestVisible="False">
+                  HorizontalAlignment="Center" VerticalAlignment="Top" Opacity="0" IsHitTestVisible="False" Visibility="Collapsed">
                 <Grid.RenderTransform>
                     <TranslateTransform x:Name="ExpandedShift" Y="-6" />
                 </Grid.RenderTransform>

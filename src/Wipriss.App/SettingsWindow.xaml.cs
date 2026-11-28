@@ -40,6 +40,8 @@ public partial class SettingsWindow : Window
         [
             ("general", "Общие", "", BuildGeneral),
             ("home", "Главный экран", "", BuildHome),
+            ("pill", "Пилюля", "", BuildPill),
+            ("agents", "Агенты", "", () => BuildModulePage("agents", "Claude Code и Codex: что делают и когда ждут вас.")),
             ("notes", "Заметки", "", BuildNotes),
             ("capture", "Скриншоты", "", () => BuildModulePage("capture", "Снимок экрана по клавише PrtSc.")),
             ("dictation", "Голос", "", () => BuildModulePage("dictation", "Говорите, и текст печатается там, где курсор.")),
@@ -132,9 +134,6 @@ public partial class SettingsWindow : Window
             first = false;
             cards.Children.Add(ModuleToggle(info));
         }
-        cards.Children.Add(Divider());
-        cards.Children.Add(Toggle("Показывать в капсуле, что играет", "Иначе капсула показывает только работу Claude.",
-            _store.Current.MediaInPill, on => _store.Update(s => s.MediaInPill = on)));
         Section("Карточки", cards);
 
         var dock = Card();
@@ -146,6 +145,46 @@ public partial class SettingsWindow : Window
             dock.Children.Add(ModuleToggle(info));
         }
         Section("Кнопки внизу", dock, "Выключенный модуль не загружается и не тратит память.");
+    }
+
+    /// <summary>What the closed pill shows. Each kind of block can be switched off on its own.</summary>
+    private void BuildPill()
+    {
+        Header("Пилюля", "Чёрная пилюля вверху экрана. Если всё не помещается, сначала прячется менее важное.");
+
+        var modules = Card();
+        bool first = true;
+        foreach (var info in ModuleCatalog.All.Where(m => m.Place == ModulePlace.Pill))
+        {
+            if (!first) modules.Children.Add(Divider());
+            first = false;
+            modules.Children.Add(ModuleToggle(info));
+        }
+        Section("Модули", modules, "Выключенный модуль не загружается и ничего не замеряет.");
+
+        var kinds = Card();
+        (string Kind, string Title, string? Note)[] all =
+        [
+            ("media", "Музыка", "Обложка, название и полоски звука"),
+            ("agents", "Агенты", "Claude Code и Codex: работают, ждут вас, готово"),
+            ("load.cpu", "Процессор", null),
+            ("load.gpu", "Видеокарта", null),
+            ("load.ram", "Память", null),
+            ("load.net", "Сеть", "Скорость загрузки и отдачи"),
+            ("battery", "Батареи", "Только подключённые мышь, клавиатура и наушники"),
+        ];
+        first = true;
+        foreach (var (kind, title, note) in all)
+        {
+            if (!first) kinds.Children.Add(Divider());
+            first = false;
+            kinds.Children.Add(Toggle(title, note, _store.Current.IsShownInPill(kind), on => _store.Update(s =>
+            {
+                s.HiddenInPill.Remove(kind);
+                if (!on) s.HiddenInPill.Add(kind);
+            })));
+        }
+        Section("Что показывать", kinds);
     }
 
     private void BuildNotes()
