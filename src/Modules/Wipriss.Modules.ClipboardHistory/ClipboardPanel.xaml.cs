@@ -31,7 +31,7 @@ public partial class ClipboardPanel : UserControl
 
     private void Refresh()
     {
-        var shown = _module.Items
+        var shown = _module.Ordered
             .Where(e => _filter == "all" || (_filter == "text" ? e.Kind == ClipKind.Text : e.Kind == ClipKind.Image))
             .Select(ViewFor)
             .ToList();

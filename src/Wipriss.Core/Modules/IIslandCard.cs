@@ -72,3 +72,18 @@ public interface ISettingsPage
     /// <summary>Builds the page. Called when the page is opened; dropped with the window.</summary>
     FrameworkElement CreateSettings();
 }
+
+/// <summary>
+/// A part of a dock tab that opens inside the open island (like the home screen) instead of a panel window.
+/// Several modules may share one tab: their parts stand one under another by <see cref="PageOrder"/>. Built when the
+/// tab is chosen, dropped when the island closes or another tab is chosen.
+/// </summary>
+public interface IIslandPage
+{
+    /// <summary>The dock tab (a module id) this part belongs to.</summary>
+    string PageId { get; }
+
+    int PageOrder => 0;
+
+    FrameworkElement CreatePage();
+}

@@ -25,6 +25,9 @@ public sealed class ClipEntry
     public int Height { get; set; }
     public DateTime Copied { get; set; } = DateTime.Now;
     public string Hash { get; set; } = "";
+
+    /// <summary>Pinned: stays at the top, is never pushed out by new copies and survives "Очистить".</summary>
+    public bool Pinned { get; set; }
 }
 
 public sealed class ClipIndex
@@ -41,7 +44,7 @@ internal sealed partial class ClipJson : JsonSerializerContext;
 /// Clipboard history. Windows notifies us of every copy (AddClipboardFormatListener), so nothing is polled.
 /// The index keeps only short previews in memory; full texts and images are separate encrypted files.
 /// </summary>
-public sealed class ClipboardModule : IModule
+public sealed class ClipboardModule : IModule, IIslandPage
 {
     public const int MaxItems = 20;
     private const int MaxTextChars = 1_000_000;
@@ -69,6 +72,13 @@ public sealed class ClipboardModule : IModule
         : RuText.Count(_index.Items.Count, "запись", "записи", "записей");
 
     public IReadOnlyList<ClipEntry> Items => _index.Items;
+
+    /// <summary>As shown: the pinned ones first, then the rest, newest first.</summary>
+    public IReadOnlyList<ClipEntry> Ordered => [.. _index.Items.Where(e => e.Pinned), .. _index.Items.Where(e => !e.Pinned)];
+
+    public string PageId => "clipboard";
+
+    public FrameworkElement CreatePage() => new ClipboardPage(this);
 
     /// <summary>Raised on the UI thread when the history changes.</summary>
     public event Action? Changed;
@@ -283,6 +293,10 @@ public sealed class ClipboardModule : IModule
     private void AddEntry(ClipEntry entry, byte[] content)
     {
         int existing = _index.Items.FindIndex(e => e.Hash == entry.Hash);
+        if (existing >= 0 && _index.Items[existing].Pinned)
+        {
+            return; // already kept, pinned in its place
+        }
         if (existing >= 0)
         {
             // Same content copied again: move it to the top instead of storing a duplicate.
@@ -297,10 +311,11 @@ public sealed class ClipboardModule : IModule
             _index.Items.Insert(0, entry);
         }
 
-        while (_index.Items.Count > MaxItems)
+        // Only the unpinned ones count towards the limit; the oldest of them goes.
+        while (_index.Items.Count(e => !e.Pinned) > MaxItems)
         {
-            var oldest = _index.Items[^1];
-            _index.Items.RemoveAt(_index.Items.Count - 1);
+            var oldest = _index.Items.Last(e => !e.Pinned);
+            _index.Items.Remove(oldest);
             TryDelete(ItemPath(oldest.Id));
         }
 
@@ -317,7 +332,10 @@ public sealed class ClipboardModule : IModule
         catch (Exception ex) when (ex is CryptographicException or IOException) { return null; }
     }
 
-    /// <summary>Puts an entry back on the clipboard and moves it to the top.</summary>
+    /// <summary>
+    /// Puts an entry back on the clipboard. The history stays as it is: our own copy is not recorded again and the
+    /// entry keeps its place.
+    /// </summary>
     public bool CopyBack(ClipEntry entry)
     {
         var bytes = ReadContent(entry);
@@ -337,13 +355,22 @@ public sealed class ClipboardModule : IModule
         try { System.Windows.Clipboard.SetDataObject(data, copy: true); }
         catch (ExternalException) { return false; }
         _ownSequence = GetClipboardSequenceNumber(); // don't record our own copy again
+        return true;
+    }
 
-        _index.Items.Remove(entry);
-        entry.Copied = DateTime.Now;
-        _index.Items.Insert(0, entry);
+    public void SetPinned(ClipEntry entry, bool pinned)
+    {
+        if (entry.Pinned == pinned) return;
+        entry.Pinned = pinned;
+        // Unpinned, it goes back among the others by when it was copied.
+        if (!pinned)
+        {
+            _index.Items.Remove(entry);
+            int at = _index.Items.FindIndex(e => !e.Pinned && e.Copied < entry.Copied);
+            _index.Items.Insert(at < 0 ? _index.Items.Count : at, entry);
+        }
         SaveIndex();
         Changed?.Invoke();
-        return true;
     }
 
     public void Delete(ClipEntry entry)
@@ -354,10 +381,11 @@ public sealed class ClipboardModule : IModule
         Changed?.Invoke();
     }
 
+    /// <summary>Removes everything except the pinned entries.</summary>
     public void Clear()
     {
-        foreach (var entry in _index.Items) TryDelete(ItemPath(entry.Id));
-        _index.Items.Clear();
+        foreach (var entry in _index.Items.Where(e => !e.Pinned)) TryDelete(ItemPath(entry.Id));
+        _index.Items.RemoveAll(e => !e.Pinned);
         SaveIndex();
         Changed?.Invoke();
     }

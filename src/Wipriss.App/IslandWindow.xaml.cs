@@ -231,7 +231,9 @@ public partial class IslandWindow : Window
 
     private void OnCardChanged()
     {
-        if (_expanded) BuildCards();
+        if (!_expanded || _page is not null) return;
+        BuildCards();
+        RefitLater();
     }
 
     // ---- The closed pill: blocks from modules ----
@@ -524,6 +526,13 @@ public partial class IslandWindow : Window
     /// <summary>Drops every card and the figures, so the closed island holds no card UI and nothing ticks.</summary>
     private void ClearHome()
     {
+        // The next opening starts on the home screen again.
+        if (_page is not null)
+        {
+            DropPage();
+            Home.Visibility = Visibility.Visible;
+            SetActiveModule(null);
+        }
         MainCard.Content = null;
         SideTopCard.Content = null;
         SideMiddleCard.Content = null;
@@ -538,33 +547,44 @@ public partial class IslandWindow : Window
     private Rect _openRect = new(8, 0, 968, 420);
     private int _keyboardHolds;
 
-    /// <summary>Measures the open content and sizes the outline, the window and the island to it.</summary>
+    /// <summary>
+    /// Sizes the outline and the window to the open content. While open the island itself is as tall as the work
+    /// area, so its content is never squeezed and its laid-out height is its real height (a squeezed measure was
+    /// how the outline once stopped half-way after a track change).
+    /// </summary>
     private void FitOpenHeight(bool animate)
     {
-        ExpandedContent.Measure(new Size(ExpandedContent.Width, double.PositiveInfinity));
-        double content = ExpandedContent.DesiredSize.Height;
+        double content;
+        if (ExpandedContent.IsArrangeValid && ExpandedContent.ActualHeight > 0)
+            content = ExpandedContent.ActualHeight + ExpandedContent.Margin.Top;
+        else
+        {
+            // Just made visible, not laid out yet.
+            ExpandedContent.Measure(new Size(ExpandedContent.Width, double.PositiveInfinity));
+            content = ExpandedContent.DesiredSize.Height; // the top margin is in its desired size
+        }
         double max = SystemParameters.WorkArea.Height - 40;
-        double height = Math.Min(content + OpenBottom, max); // the content's top margin is in its desired size
+        double height = Math.Min(content + OpenBottom, max);
         var rect = new Rect(8, 0, _islandWidth - 16, Math.Round(height));
         if (rect == _openRect && Height >= rect.Height + 6 + Overshoot) return;
         _openRect = rect;
+        Island.Height = SystemParameters.WorkArea.Height;
         // The window grows at once (its spare part is transparent); it shrinks only when the island closes.
         double window = 6 + rect.Height + Overshoot;
-        if (window > Height || !animate)
-        {
-            Height = window;
-            Island.Height = rect.Height + Overshoot;
-        }
-        if (!_expanded) return;
-        if (animate)
-            _shape.BeginAnimation(RectangleGeometry.RectProperty,
-                new RectAnimation(rect, TimeSpan.FromMilliseconds(220)) { EasingFunction = WidthEase });
+        if (window > Height || !animate) Height = window;
+        if (!_expanded || !animate) return;
+        _shape.BeginAnimation(RectangleGeometry.RectProperty,
+            new RectAnimation(rect, TimeSpan.FromMilliseconds(220)) { EasingFunction = WidthEase });
     }
 
     private void OnExpandedSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (_expanded && e.HeightChanged) FitOpenHeight(animate: true);
     }
+
+    /// <summary>Once the rebuilt cards are laid out (templates, pictures), the outline is checked again.</summary>
+    private void RefitLater() =>
+        Dispatcher.BeginInvoke(() => { if (_expanded) FitOpenHeight(animate: true); }, DispatcherPriority.Loaded);
 
     /// <summary>A card asked for the keyboard: the island takes the focus and stays open meanwhile.</summary>
     private IDisposable TakeKeyboard()
@@ -644,8 +664,63 @@ public partial class IslandWindow : Window
     private void Tile_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: TileItem { IsReady: true } tile }) return;
+        if (PagesFor(tile.Info.Id).Count > 0)
+        {
+            ShowPage(tile.Info.Id);
+            return;
+        }
         CollapseNow();
         ModuleRequested?.Invoke(tile.Info.Id);
+    }
+
+    // ---- A dock tab shown inside the island ----
+
+    private string? _page;
+
+    private List<IIslandPage> PagesFor(string tabId) =>
+        [.. ModuleCatalog.All.Select(m => _modules.Get(m.Id)).OfType<IIslandPage>()
+            .Where(p => p.PageId == tabId).OrderBy(p => p.PageOrder)];
+
+    /// <summary>Swaps the home cards for the tab's parts. The home cards are dropped meanwhile, so nothing ticks unseen.</summary>
+    private void ShowPage(string tabId)
+    {
+        if (_page == tabId) return;
+        HomeRequested?.Invoke(); // a module's panel window, if one is open, closes
+        DropPage();
+        _page = tabId;
+        MainCard.Content = SideTopCard.Content = SideMiddleCard.Content = SideCard.Content = null;
+        Home.Visibility = Visibility.Collapsed;
+        foreach (var part in PagesFor(tabId))
+        {
+            try
+            {
+                var view = part.CreatePage();
+                if (Page.Children.Count > 0) view.Margin = new Thickness(0, 12, 0, 0);
+                Page.Children.Add(view);
+            }
+            catch (Exception ex) { CrashLog.Write(ex); }
+        }
+        Page.Visibility = Visibility.Visible;
+        SetActiveModule(tabId);
+        RefitLater();
+    }
+
+    /// <summary>Back to the home cards.</summary>
+    private void ShowHome()
+    {
+        if (_page is null) return;
+        DropPage();
+        Home.Visibility = Visibility.Visible;
+        if (_expanded) BuildCards();
+        SetActiveModule(null);
+        RefitLater();
+    }
+
+    private void DropPage()
+    {
+        _page = null;
+        Page.Children.Clear();
+        Page.Visibility = Visibility.Collapsed;
     }
 
     private void UpdateVisibility()
@@ -755,7 +830,8 @@ public partial class IslandWindow : Window
     {
         e.Handled = true;
         HomeRequested?.Invoke();
-        SetActiveModule(null);
+        if (_page is not null) ShowHome();
+        else SetActiveModule(null);
     }
 
     private void Settings_Click(object sender, MouseButtonEventArgs e)
@@ -780,10 +856,11 @@ public partial class IslandWindow : Window
             _shape.BeginAnimation(RectangleGeometry.RectProperty, null);
             _expanded = false; SetWindowWidth(OpenWindowWidth); _expanded = true;
             UpdateTiles();
-            BuildCards();
+            if (_page is null) BuildCards();
             UpdateClock();
             ExpandedContent.Visibility = Visibility.Visible;
             FitOpenHeight(animate: false);
+            RefitLater();
         }
         else
         {

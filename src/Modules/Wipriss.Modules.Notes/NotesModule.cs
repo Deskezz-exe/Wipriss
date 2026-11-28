@@ -24,7 +24,7 @@ public sealed class NotesFile
 internal sealed partial class NotesJson : JsonSerializerContext;
 
 /// <summary>Quick notes. Nothing runs in the background: the file is read when the island or panel opens.</summary>
-public sealed class NotesModule : IModule
+public sealed class NotesModule : IModule, IIslandPage
 {
     private static readonly string FilePath = Path.Combine(AppPaths.DataDir, "notes.dat");
     private NotesFile? _data;
@@ -49,6 +49,13 @@ public sealed class NotesModule : IModule
     public void Stop() => _data = null;
 
     public FrameworkElement CreatePanel(IPanelContext panel) => new NotesPanel(this, panel);
+
+    /// <summary>The notes stand under the clipboard on its tab.</summary>
+    public string PageId => "clipboard";
+
+    public int PageOrder => 1;
+
+    public FrameworkElement CreatePage() => new NotesPage(this);
 
     internal void Save() => SecureStore.WriteJson(FilePath, Data, NotesJson.Default.NotesFile);
 }

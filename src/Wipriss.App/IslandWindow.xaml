@@ -137,6 +137,9 @@
                         <ContentControl x:Name="SideCard" Grid.Row="1" Focusable="False" Margin="0,12,0,0" />
                     </Grid>
                 </Grid>
+
+                <!-- A dock tab that opens right here (the clipboard and notes): its modules' parts, one under another -->
+                <StackPanel x:Name="Page" Grid.Row="2" Visibility="Collapsed" />
             </Grid>
         </Grid>
 

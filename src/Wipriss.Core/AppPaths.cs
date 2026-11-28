@@ -42,6 +42,9 @@ public static class AppPaths
 
     private static string ReadRoot()
     {
+        // For checks of the UI on test data only: the owner's notes and clipboard are never shown or touched.
+        if (Environment.GetEnvironmentVariable("WIPRISS_TEST_ROOT") is { Length: > 0 } test && Path.IsPathFullyQualified(test))
+            return test;
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RegistryKey);
