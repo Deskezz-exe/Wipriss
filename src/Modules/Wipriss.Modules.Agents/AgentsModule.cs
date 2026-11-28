@@ -361,7 +361,10 @@ public sealed class AgentsModule : IModule, IIslandCard, IPillSource, ISettingsP
                 _ when visible.Count > 0 => AgentStatus.Idle,
                 _ => AgentStatus.Inactive,
             };
-            list.Add(new AgentView("claude", status, project, working?.Doing ?? ""));
+            // What it does right now ("Читает Test.html"); else the plan's step in progress.
+            string doing = working?.Doing is { Length: > 0 } d ? d
+                : working?.Headline is { Length: > 0 } h && h != "Работает" ? h : "";
+            list.Add(new AgentView("claude", status, project, doing));
         }
 
         if (HookSetup.CodexInstalled)

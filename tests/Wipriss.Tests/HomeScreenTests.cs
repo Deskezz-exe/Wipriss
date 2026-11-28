@@ -67,6 +67,39 @@ public class TimerClockTests
         Assert.Equal(expected, TimerClock.Short(TimeSpan.FromSeconds(seconds)));
 }
 
+public class TodoListTests
+{
+    [Fact]
+    public void Add_keeps_one_trimmed_line_and_skips_empty_text()
+    {
+        var list = new Wipriss.Modules.Todo.TodoList(new Wipriss.Modules.Todo.TodoData());
+        Assert.True(list.Add("  Купить\r\nмолоко\t "));
+        Assert.False(list.Add("   "));
+        Assert.Single(list.Items);
+        Assert.Equal("Купить молоко", list.Items[0].Text);
+        Assert.True(list.Add(new string('x', 1000)));
+        Assert.Equal(Wipriss.Modules.Todo.TodoList.MaxLength, list.Items[1].Text.Length);
+    }
+
+    [Fact]
+    public void Toggle_crosses_out_and_back_and_remove_drops_the_item()
+    {
+        var list = new Wipriss.Modules.Todo.TodoList(new Wipriss.Modules.Todo.TodoData());
+        list.Add("a");
+        list.Add("b");
+        list.Toggle(0);
+        Assert.True(list.Items[0].Done);
+        Assert.Equal(1, list.DoneCount);
+        list.Toggle(0);
+        Assert.False(list.Items[0].Done);
+        list.Remove(0);
+        Assert.Equal("b", Assert.Single(list.Items).Text);
+        list.Remove(5); // out of range: nothing happens
+        list.Toggle(-1);
+        Assert.Single(list.Items);
+    }
+}
+
 public class CoverColorTests
 {
     private static byte[] Pixels(params (byte R, byte G, byte B, int Count)[] runs)

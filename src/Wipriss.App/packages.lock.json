@@ -198,6 +198,12 @@
           "Wipriss.Core": "[0.1.0, )"
         }
       },
+      "wipriss.modules.todo": {
+        "type": "Project",
+        "dependencies": {
+          "Wipriss.Core": "[0.1.0, )"
+        }
+      },
       "wipriss.modules.voice": {
         "type": "Project",
         "dependencies": {

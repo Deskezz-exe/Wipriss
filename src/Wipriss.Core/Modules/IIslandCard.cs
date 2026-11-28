@@ -11,6 +11,9 @@ public enum HomeArea
     /// <summary>Top of the right column, a short card (the timer).</summary>
     SideTop,
 
+    /// <summary>Under it, a card that grows with its content (the to-do list).</summary>
+    SideMiddle,
+
     /// <summary>The rest of the right column (agents).</summary>
     Side,
 }
@@ -41,6 +44,26 @@ public interface IIslandCard
 public interface IIslandStatus
 {
     FrameworkElement CreateStatus();
+
+    /// <summary>False: the middle of the top row (figures). True: next to the settings button (devices).</summary>
+    bool StatusOnRight => false;
+}
+
+/// <summary>
+/// The open island never takes the keyboard (clicking it must not steal focus from your app). A card that needs
+/// typing (a new task) asks for it here: the island takes the focus and stays open until the returned handle is
+/// disposed. Set up by the island; without it nothing happens.
+/// </summary>
+public static class IslandKeyboard
+{
+    public static Func<IDisposable>? Provider { get; set; }
+
+    public static IDisposable Take() => Provider?.Invoke() ?? new Nothing();
+
+    private sealed class Nothing : IDisposable
+    {
+        public void Dispose() { }
+    }
 }
 
 /// <summary>A module with its own page in the Settings window.</summary>

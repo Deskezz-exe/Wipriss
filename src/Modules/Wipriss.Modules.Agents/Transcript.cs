@@ -228,7 +228,8 @@ public sealed class Transcript
         {
             "Bash" or "PowerShell" => Str(input, "description") is { Length: > 0 } d ? Short(d) : "Запускает команду",
             "Read" => file.Length > 0 ? "Читает " + file : "Читает файл",
-            "Edit" or "Write" or "NotebookEdit" or "MultiEdit" => file.Length > 0 ? "Правит " + file : "Правит код",
+            "Write" => file.Length > 0 ? "Пишет " + file : "Пишет код",
+            "Edit" or "NotebookEdit" or "MultiEdit" => file.Length > 0 ? "Правит " + file : "Правит код",
             "Grep" or "Glob" => "Ищет в коде",
             "WebSearch" => "Ищет в интернете",
             "WebFetch" => "Читает страницу",

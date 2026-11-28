@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\src\Modules\Wipriss.Modules.Agents\Wipriss.Modules.Agents.csproj" />
     <ProjectReference Include="..\..\src\Modules\Wipriss.Modules.Load\Wipriss.Modules.Load.csproj" />
     <ProjectReference Include="..\..\src\Modules\Wipriss.Modules.Timer\Wipriss.Modules.Timer.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Wipriss.Modules.Todo\Wipriss.Modules.Todo.csproj" />
     <ProjectReference Include="..\..\src\Modules\Wipriss.Modules.Reminders\Wipriss.Modules.Reminders.csproj" />
     <ProjectReference Include="..\..\src\Wipriss.ProcessTools\Wipriss.ProcessTools.csproj" />
     <ProjectReference Include="..\..\src\Wipriss.Capture\Wipriss.Capture.csproj" />

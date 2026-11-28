@@ -27,6 +27,7 @@ public partial class App : Application
         new("agents", () => new Wipriss.Modules.Agents.AgentsModule()),
         new("media", () => new Wipriss.Modules.Media.MediaModule()),
         new("timer", () => new Wipriss.Modules.Timer.TimerModule()),
+        new("todo", () => new Wipriss.Modules.Todo.TodoModule()),
         new("load", () => new Wipriss.Modules.Load.LoadModule()),
         new("batteries", () => new Wipriss.Modules.Batteries.BatteriesModule()),
     ];

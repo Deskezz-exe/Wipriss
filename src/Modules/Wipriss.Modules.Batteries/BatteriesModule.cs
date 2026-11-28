@@ -14,8 +14,35 @@ namespace Wipriss.Modules.Batteries;
 /// by events; the charge is read then and every few minutes while the pill is seen.
 /// For checks without the hardware: WIPRISS_FAKE_BATTERIES="mouse|Name|5|0;keyboard|K|100|1;headset|Наушники|60|0".
 /// </summary>
-public sealed class BatteriesModule : IModule, IPillSource
+public sealed class BatteriesModule : IModule, IPillSource, IIslandStatus
 {
+    // ---- The open island: the devices next to the settings button ----
+
+    private StackPanel? _status;
+
+    public bool StatusOnRight => true;
+
+    public FrameworkElement CreateStatus()
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        row.Loaded += (_, _) => { _status = row; FillStatus(); };
+        row.Unloaded += (_, _) => { if (_status == row) _status = null; };
+        return row;
+    }
+
+    /// <summary>One small device each: its icon, battery and percent; the name in the tooltip.</summary>
+    private void FillStatus()
+    {
+        if (_status is null) return;
+        _status.Children.Clear();
+        foreach (var d in _devices)
+        {
+            var view = new BatteryPill { ToolTip = d.Name, Margin = new Thickness(_status.Children.Count == 0 ? 0 : 16, 0, 0, 0) };
+            view.Show(d);
+            _status.Children.Add(view);
+        }
+    }
+
     private static readonly TimeSpan Refresh = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan Debounce = TimeSpan.FromSeconds(2);
 
@@ -165,6 +192,7 @@ public sealed class BatteriesModule : IModule, IPillSource
         foreach (var d in found)
             if (_views.TryGetValue(d.Key, out var view)) view.Show(d);
         if (!sameSet) PillChanged?.Invoke();
+        FillStatus();
     }
 
     internal static List<BatteryDevice>? Fake(string? spec)

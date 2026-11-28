@@ -27,6 +27,7 @@
     <ProjectReference Include="..\Modules\Wipriss.Modules.Media\Wipriss.Modules.Media.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Load\Wipriss.Modules.Load.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Timer\Wipriss.Modules.Timer.csproj" />
+    <ProjectReference Include="..\Modules\Wipriss.Modules.Todo\Wipriss.Modules.Todo.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Batteries\Wipriss.Modules.Batteries.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.Notes\Wipriss.Modules.Notes.csproj" />
     <ProjectReference Include="..\Modules\Wipriss.Modules.ClipboardHistory\Wipriss.Modules.ClipboardHistory.csproj" />

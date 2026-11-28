@@ -78,7 +78,7 @@ internal sealed class MediaPill : StackPanel
                 RepeatBehavior = RepeatBehavior.Forever,
                 EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
             };
-            Timeline.SetDesiredFrameRate(bounce, 12);
+            Timeline.SetDesiredFrameRate(bounce, 8);
             _bars[i].BeginAnimation(ScaleTransform.ScaleYProperty, bounce);
         }
     }

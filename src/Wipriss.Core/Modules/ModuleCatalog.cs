@@ -18,7 +18,8 @@ public static class ModuleCatalog
         new("agents",     "Агенты",        "", "Чем заняты Claude Code и Codex", 8, ModulePlace.Card),
         new("media",      "Сейчас играет", "", "Музыка и видео из любых программ", 8, ModulePlace.Card),
         new("timer",      "Таймер",        "", "Простой таймер: 5, 15 или 25 минут", 9, ModulePlace.Card),
-        new("load",      "Нагрузка",      "", "Процессор, видеокарта, память и сеть", 9, ModulePlace.Pill),
+        new("todo",       "Задачи",        "", "Список дел под таймером", 9, ModulePlace.Card),
+        new("load",     "Нагрузка",      "", "Процессор, видеокарта, память и сеть", 9, ModulePlace.Pill),
         new("batteries",  "Батареи",       "", "Заряд мыши, клавиатуры и наушников", 9, ModulePlace.Pill),
     ];
 

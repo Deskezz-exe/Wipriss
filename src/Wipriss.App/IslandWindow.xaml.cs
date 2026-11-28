@@ -20,16 +20,15 @@ namespace Wipriss.App;
 /// </summary>
 public partial class IslandWindow : Window
 {
-    // The outline inside the Island grid (772 x 330). The spare room around the open shape
-    // is for the spring's small overshoot. The closed pill grows to fit what it says.
-    private const double IslandWidth = 772, PillHeight = 34, PillMinWidth = 120, PillMaxWidth = 580;
+    // The outline inside the Island grid (852 wide; as tall as the open cards need). The spare room around the
+    // open shape is for the spring's small overshoot. The closed pill grows to fit what it says.
+    private const double OpenWindowWidth = 992, ClosedWindowWidth = 620, PillHeight = 34, PillMinWidth = 120, PillMaxWidth = 580;
     private const double PillPadding = 14, PillGap = 10, PillGroupGap = 21;
 
     // The window is only as tall as the pill while closed: a transparent window is redrawn whole, so every
     // figure that changes once a second costs in proportion to the window's area.
-    private const double OpenWindowHeight = 344, ClosedWindowHeight = 6 + PillHeight + 6;
-    private static readonly Rect ExpandedRect = new(8, 0, 756, 326);
-    private const double CollapsedRadius = 17, ExpandedRadius = 28;
+    private const double ClosedWindowHeight = 6 + PillHeight + 6;
+    private const double CollapsedRadius = 17, ExpandedRadius = 30;
     private const double ContentRestOffset = -6;
 
     private static readonly IEasingFunction OpenEase = new SpringEase(damping: 0.78, frequency: 7);
@@ -37,7 +36,8 @@ public partial class IslandWindow : Window
     private static readonly IEasingFunction FadeEase = Frozen(new CubicEase { EasingMode = EasingMode.EaseOut });
     private static readonly IEasingFunction WidthEase = Frozen(new QuarticEase { EasingMode = EasingMode.EaseOut });
 
-    private Rect _collapsedRect = PillRect(PillMinWidth);
+    private double _islandWidth = ClosedWindowWidth - 8;
+    private Rect _collapsedRect = new((ClosedWindowWidth - 8 - PillMinWidth) / 2, 0, PillMinWidth, PillHeight);
     private readonly RectangleGeometry _shape;
     private readonly DispatcherTimer _clock;
     private readonly List<IIslandCard> _cards = [];
@@ -81,7 +81,7 @@ public partial class IslandWindow : Window
         _expandDelay = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(120) };
         _expandDelay.Tick += (_, _) => { _expandDelay.Stop(); SetExpanded(true); };
         _collapseDelay = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(350) };
-        _collapseDelay.Tick += (_, _) => { _collapseDelay.Stop(); SetExpanded(false); };
+        _collapseDelay.Tick += (_, _) => { _collapseDelay.Stop(); if (_keyboardHolds == 0) SetExpanded(false); };
 
         // Runs only while the island is open: the clock moves on to the next minute.
         _clock = new DispatcherTimer(DispatcherPriority.Background);
@@ -96,6 +96,10 @@ public partial class IslandWindow : Window
         RebuildTiles();
         HookCards();
         HookPill();
+        ExpandedContent.SizeChanged += OnExpandedSizeChanged;
+        IslandKeyboard.Provider = TakeKeyboard;
+        SettingsButton.MouseEnter += (_, _) => SettingsButton.Background = (Brush)FindResource("TileHoverBrush");
+        SettingsButton.MouseLeave += (_, _) => SettingsButton.Background = (Brush)FindResource("SocketFillBrush");
     }
 
     /// <summary>WM_HOTKEY ids go here (set by the app's hotkey service).</summary>
@@ -402,7 +406,27 @@ public partial class IslandWindow : Window
         _collapsedRect = PillRect(_restWidth);
     }
 
-    private static Rect PillRect(double width) => new((IslandWidth - width) / 2, 0, width, PillHeight);
+    private Rect PillRect(double width) => new((_islandWidth - width) / 2, 0, width, PillHeight);
+
+    /// <summary>
+    /// Narrow while closed (a transparent window is redrawn whole, so the pill's animations cost by its area),
+    /// wide while open. The pill keeps its place in the middle of the screen.
+    /// </summary>
+    private void SetWindowWidth(double width)
+    {
+        if (Width == width) return;
+        double pill = _collapsedRect.Width;
+        Width = width;
+        _islandWidth = width - 8;
+        Island.Width = _islandWidth;
+        PlaceAtTop();
+        _collapsedRect = PillRect(pill);
+        if (!_expanded)
+        {
+            _shape.BeginAnimation(RectangleGeometry.RectProperty, null);
+            _shape.Rect = _collapsedRect;
+        }
+    }
 
     private void SetPillWidth(double width)
     {
@@ -426,6 +450,7 @@ public partial class IslandWindow : Window
     {
         MainCard.Content = null;
         SideTopCard.Content = null;
+        SideMiddleCard.Content = null;
         SideCard.Content = null;
         foreach (var card in _cards)
         {
@@ -433,7 +458,13 @@ public partial class IslandWindow : Window
             HomeArea area;
             try { has = card.HasContent; area = card.Area; } catch (Exception ex) { CrashLog.Write(ex); continue; }
             if (!has) continue;
-            var host = area switch { HomeArea.Main => MainCard, HomeArea.SideTop => SideTopCard, _ => SideCard };
+            var host = area switch
+            {
+                HomeArea.Main => MainCard,
+                HomeArea.SideTop => SideTopCard,
+                HomeArea.SideMiddle => SideMiddleCard,
+                _ => SideCard,
+            };
             if (host.Content is not null) continue; // one card per place
             try { host.Content = card.CreateCard(); }
             catch (Exception ex) { CrashLog.Write(ex); }
@@ -441,27 +472,31 @@ public partial class IslandWindow : Window
 
         // Nothing plays: the time and date take the big place.
         EmptyMain.Visibility = MainCard.Content is null ? Visibility.Visible : Visibility.Collapsed;
-        bool top = SideTopCard.Content is not null, side = SideCard.Content is not null;
-        SideTopCard.Visibility = top ? Visibility.Visible : Visibility.Collapsed;
-        SideCard.Visibility = side ? Visibility.Visible : Visibility.Collapsed;
-        SideGap.Visibility = top && side ? Visibility.Visible : Visibility.Collapsed;
-        // A lone short card grows to fill the column.
-        SideTopCard.Height = side ? 104 : double.NaN;
-        if (!side) Grid.SetRowSpan(SideTopCard, 3); else Grid.SetRowSpan(SideTopCard, 1);
+        // The right column: its cards one under another, a gap only between shown ones.
+        bool first = true;
+        foreach (var host in new[] { SideTopCard, SideMiddleCard, SideCard })
+        {
+            bool shown = host.Content is not null;
+            host.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+            if (!shown) continue;
+            host.Margin = new Thickness(0, first ? 0 : 12, 0, 0);
+            first = false;
+        }
         // No right column at all: the big card takes the whole width.
-        bool anySide = top || side;
+        bool anySide = !first;
         SideColumn.Visibility = anySide ? Visibility.Visible : Visibility.Collapsed;
         Grid.SetColumnSpan(MainHost, anySide ? 1 : 3);
-        MainColumn.Width = anySide ? new GridLength(336) : new GridLength(1, GridUnitType.Star);
+        MainColumn.Width = anySide ? new GridLength(430) : new GridLength(1, GridUnitType.Star);
 
         // The figures are built once per opening: rebuilding them would restart their readings.
-        if (StatusHost.Content is not null) return;
+        if (StatusHost.Content is not null || DeviceHost.Content is not null) return;
         foreach (var info in ModuleCatalog.All)
             if (_modules.Get(info.Id) is IIslandStatus status)
             {
-                try { StatusHost.Content = status.CreateStatus(); }
+                var host = status.StatusOnRight ? DeviceHost : StatusHost;
+                if (host.Content is not null) continue;
+                try { host.Content = status.CreateStatus(); }
                 catch (Exception ex) { CrashLog.Write(ex); }
-                break;
             }
     }
 
@@ -470,15 +505,79 @@ public partial class IslandWindow : Window
     {
         MainCard.Content = null;
         SideTopCard.Content = null;
+        SideMiddleCard.Content = null;
         SideCard.Content = null;
         StatusHost.Content = null;
+        DeviceHost.Content = null;
+    }
+
+    // ---- The open island's height follows its cards ----
+
+    private const double OpenTop = 18, OpenBottom = 24, Overshoot = 12;
+    private Rect _openRect = new(8, 0, 968, 420);
+    private int _keyboardHolds;
+
+    /// <summary>Measures the open content and sizes the outline, the window and the island to it.</summary>
+    private void FitOpenHeight(bool animate)
+    {
+        ExpandedContent.Measure(new Size(ExpandedContent.Width, double.PositiveInfinity));
+        double content = ExpandedContent.DesiredSize.Height;
+        double max = SystemParameters.WorkArea.Height - 40;
+        double height = Math.Min(content + OpenBottom, max); // the content's top margin is in its desired size
+        var rect = new Rect(8, 0, _islandWidth - 16, Math.Round(height));
+        if (rect == _openRect && Height >= rect.Height + 6 + Overshoot) return;
+        _openRect = rect;
+        // The window grows at once (its spare part is transparent); it shrinks only when the island closes.
+        double window = 6 + rect.Height + Overshoot;
+        if (window > Height || !animate)
+        {
+            Height = window;
+            Island.Height = rect.Height + Overshoot;
+        }
+        if (!_expanded) return;
+        if (animate)
+            _shape.BeginAnimation(RectangleGeometry.RectProperty,
+                new RectAnimation(rect, TimeSpan.FromMilliseconds(220)) { EasingFunction = WidthEase });
+    }
+
+    private void OnExpandedSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_expanded && e.HeightChanged) FitOpenHeight(animate: true);
+    }
+
+    /// <summary>A card asked for the keyboard: the island takes the focus and stays open meanwhile.</summary>
+    private IDisposable TakeKeyboard()
+    {
+        _keyboardHolds++;
+        _collapseDelay.Stop();
+        var hwnd = new WindowInteropHelper(this).Handle;
+        nint style = Native.GetWindowLongPtr(hwnd, Native.GWL_EXSTYLE);
+        Native.SetWindowLongPtr(hwnd, Native.GWL_EXSTYLE, style & ~(nint)Native.WS_EX_NOACTIVATE);
+        Activate();
+        return new Release(() =>
+        {
+            if (--_keyboardHolds > 0) return;
+            nint s = Native.GetWindowLongPtr(hwnd, Native.GWL_EXSTYLE);
+            Native.SetWindowLongPtr(hwnd, Native.GWL_EXSTYLE, s | Native.WS_EX_NOACTIVATE);
+            if (_expanded && !Island.IsMouseOver) _collapseDelay.Start();
+        });
+    }
+
+    private sealed class Release(Action release) : IDisposable
+    {
+        private Action? _release = release;
+
+        public void Dispose()
+        {
+            _release?.Invoke();
+            _release = null;
+        }
     }
 
     private void UpdateClock()
     {
         var now = DateTime.Now;
         string time = now.ToString("HH:mm");
-        ClockText.Text = time;
         BigClock.Text = time;
         var ru = System.Globalization.CultureInfo.GetCultureInfo("ru-RU");
         string date = now.ToString("dddd, d MMMM", ru);
@@ -550,7 +649,8 @@ public partial class IslandWindow : Window
     private void Island_MouseLeave(object sender, MouseEventArgs e)
     {
         _expandDelay.Stop();
-        if (_expanded) _collapseDelay.Start();
+        // While a card takes typing (a new task), the island stays open.
+        if (_expanded && _keyboardHolds == 0) _collapseDelay.Start();
     }
 
     // Files dragged from Explorer: the island opens, and the files go to the tile they are dropped on,
@@ -610,8 +710,9 @@ public partial class IslandWindow : Window
         return null;
     }
 
-    private void Settings_Click(object sender, RoutedEventArgs e)
+    private void Settings_Click(object sender, MouseButtonEventArgs e)
     {
+        e.Handled = true;
         SetExpanded(false);
         SettingsRequested?.Invoke();
     }
@@ -627,11 +728,14 @@ public partial class IslandWindow : Window
         if (expand)
         {
             SetRenderMode(expanded: true);
-            Height = OpenWindowHeight;
             DropPeeks();
+            _shape.BeginAnimation(RectangleGeometry.RectProperty, null);
+            _expanded = false; SetWindowWidth(OpenWindowWidth); _expanded = true;
             UpdateTiles();
             BuildCards();
             UpdateClock();
+            ExpandedContent.Visibility = Visibility.Visible;
+            FitOpenHeight(animate: false);
         }
         else
         {
@@ -643,7 +747,7 @@ public partial class IslandWindow : Window
         var ease = expand ? OpenEase : CloseEase;
         double radius = expand ? ExpandedRadius : CollapsedRadius;
 
-        var outline = new RectAnimation(expand ? ExpandedRect : _collapsedRect, duration) { EasingFunction = ease };
+        var outline = new RectAnimation(expand ? _openRect : _collapsedRect, duration) { EasingFunction = ease };
         _shape.BeginAnimation(RectangleGeometry.RectProperty, outline);
         _shape.BeginAnimation(RectangleGeometry.RadiusXProperty, new DoubleAnimation(radius, duration) { EasingFunction = ease });
         _shape.BeginAnimation(RectangleGeometry.RadiusYProperty, new DoubleAnimation(radius, duration) { EasingFunction = ease });
@@ -677,6 +781,8 @@ public partial class IslandWindow : Window
             if (_expanded) return;
             ClearHome();
             Height = ClosedWindowHeight;
+            SetWindowWidth(ClosedWindowWidth);
+            Island.Height = ClosedWindowHeight - 6;
             ExpandedContent.Visibility = Visibility.Collapsed; // not even walked while drawing the pill
             SetRenderMode(expanded: false);
         };
@@ -699,6 +805,8 @@ public partial class IslandWindow : Window
         ClearHome();
         DropPeeks();
         Height = ClosedWindowHeight;
+        SetWindowWidth(ClosedWindowWidth);
+        Island.Height = ClosedWindowHeight - 6;
         SetRenderMode(expanded: false);
         UpdateShown();
 
